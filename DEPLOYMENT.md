@@ -3,8 +3,8 @@
 ## 1. Environnements
 - Local : Mac M2 et Docker Compose.
 - CI : tests, analyse statique, scans et construction d'images.
-- Staging : environnement isolé avec données synthétiques, VMs dédiées par service.
-- Production : VMs privées dédiées par service, TLS, sauvegardes et supervision.
+- Staging : environnement isolé avec données synthétiques.
+- Production : VMs ou services managés, TLS, sauvegardes et supervision.
 
 ## 2. Pipeline CI/CD
 1. Vérification format et syntaxe.
@@ -12,8 +12,8 @@
 3. Tests unitaires et intégration.
 4. PHPStan.
 5. Tests de sécurité.
-6. Construction image immuable.
-7. Scan d'image.
+6. Construction image immuable par service.
+7. Scan d'image (Trivy).
 8. Déploiement staging.
 9. Tests smoke et non-régression.
 10. Approbation.
@@ -21,7 +21,7 @@
 12. Vérification post-déploiement.
 
 ## 3. Déploiement applicatif
-- Chaque micro-service est déployé sur sa propre VM dédiée.
+- Chaque service est déployé, testé, versionné et mis à jour indépendamment (monorepo).
 - Artefacts immuables et identifiés par digest.
 - Configuration externalisée.
 - Migrations compatibles avec déploiement progressif.
@@ -38,6 +38,7 @@
 - Tests périodiques de restauration.
 - Migrations expansives puis contractives pour éviter les interruptions.
 - Ne jamais exécuter de reset ou drop de base en production comme procédure standard.
+- Transactional Outbox pour la cohérence entre l'enregistrement en base et l'envoi des événements RabbitMQ.
 
 ## 5. Exploitation
 - Monitoring disponibilité, latence, erreurs et saturation.

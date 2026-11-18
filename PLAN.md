@@ -42,11 +42,41 @@ Permettre à un utilisateur autorisé de décrire une fonctionnalité en langage
 - Aucun code généré n'est exécuté dans le processus PHP-FPM principal.
 
 ## 6. Livrables
-- Dépôt Symfony initialisé.
+- Dépôt Symfony initialisé (monorepo).
 - Compose de développement.
 - Migrations et modèle multi-tenant.
 - Moteur dynamique.
-- Orchestrateur d'agents.
+- Orchestrateur d'agents IA.
 - Pipeline de validation.
 - Environnement de préproduction.
 - Rapport d'homologation et de charge.
+- Dossier d'architecture technique complet (Architecture Blueprint).
+
+## 7. Plan de développement recommandé (9 phases)
+
+| Phase | Travail | Livrable |
+|---|---|---|
+| 1 | Infrastructure et Core Symfony | Core fonctionnel |
+| 2 | Multi-tenant et sécurité | Isolation complète |
+| 3 | Moteur dynamique | CRUD et workflows générés |
+| 4 | AI Orchestrator | Agents IA opérationnels |
+| 5 | Generation Service | Génération JSON et PHP |
+| 6 | Sandbox Runner | Tests isolés |
+| 7 | Messaging et Mercure | Communication asynchrone |
+| 8 | Catalogue global | Publication et réutilisation |
+| 9 | Cloud et homologation | Production validée |
+
+### Critères AUTO-PASS pour chaque phase
+
+Chaque phase doit produire :
+- Un audit initial.
+- Une liste des fichiers créés et modifiés.
+- Des tests unitaires et d'intégration.
+- Des tests de sécurité.
+- Des preuves reproductibles.
+- Un rapport de performance si nécessaire.
+- Un verdict `PASS`, `PASS_WITH_RESERVATIONS` ou `FAIL`.
+
+Aucun déploiement automatique en production si les contrôles obligatoires échouent.
+
+Ne développe pas tous les microservices en même temps. Commence par le Core Platform et le moteur dynamique, puis construis l'Orchestrateur IA et la Sandbox séparément.
