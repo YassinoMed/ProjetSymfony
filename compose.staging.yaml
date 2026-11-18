@@ -1,0 +1,13 @@
+services:
+  core-platform:
+    environment:
+      APP_ENV: staging
+      APP_DEBUG: "0"
+  ai-orchestrator:
+    environment:
+      APP_ENV: staging
+      APP_DEBUG: "0"
+  generation-service:
+    environment:
+      APP_ENV: staging
+      APP_DEBUG: "0"

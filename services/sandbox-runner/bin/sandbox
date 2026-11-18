@@ -1,0 +1,29 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+$runners = [
+    'php-lint' => 'Vérification syntaxique PHP (php -l)',
+    'phpstan' => 'Analyse statique (PHPStan)',
+    'phpunit' => 'Tests unitaires et d\'intégration (PHPUnit)',
+    'security-scanner' => 'Scan de dépendances et de vulnérabilités',
+];
+
+$command = $argv[1] ?? 'list';
+
+if ($command === 'list') {
+    echo "Sandbox Runner — runners disponibles :\n";
+    foreach ($runners as $name => $description) {
+        printf("  - %-18s %s\n", $name, $description);
+    }
+    exit(0);
+}
+
+if (!isset($runners[$command])) {
+    fwrite(STDERR, sprintf("Runner inconnu : %s\n", $command));
+    exit(1);
+}
+
+fwrite(STDERR, sprintf("Runner « %s » : implémentation à venir (Phase 6).\n", $command));
+exit(1);

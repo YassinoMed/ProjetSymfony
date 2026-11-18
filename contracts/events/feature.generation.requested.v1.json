@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aep.local/contracts/events/feature.generation.requested.v1.json",
+  "title": "feature.generation.requested",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "contract_version",
+    "tenant_id",
+    "correlation_id",
+    "timestamp",
+    "payload"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "const": "feature.generation.requested" },
+    "contract_version": { "type": "integer", "minimum": 1 },
+    "tenant_id": { "type": "string", "format": "uuid" },
+    "correlation_id": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "payload": {
+      "type": "object",
+      "required": ["generation_request_id", "prompt"],
+      "properties": {
+        "generation_request_id": { "type": "string", "format": "uuid" },
+        "prompt": { "type": "string", "minLength": 1 },
+        "requested_by": { "type": "string", "format": "uuid" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

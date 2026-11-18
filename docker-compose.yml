@@ -1,0 +1,149 @@
+name: auto-evolving-platform
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: aep
+      POSTGRES_PASSWORD: aep_dev_password
+      POSTGRES_DB: core
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aep -d core"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./infrastructure/docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: aep
+      RABBITMQ_DEFAULT_PASS: aep_dev_password
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  mercure:
+    image: dunglas/mercure
+    environment:
+      SERVER_NAME: ":80"
+      MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:-dev-mercure-secret-change-me-0123456789abcdef}
+      MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET:-dev-mercure-secret-change-me-0123456789abcdef}
+      MERCURE_EXTRA_DIRECTIVES: |
+        anonymous 1
+        cors_origins http://localhost:8000 http://localhost:3000
+    ports:
+      - "8080:80"
+
+  core-platform:
+    build:
+      context: ./services/core-platform
+    profiles: ["app"]
+    environment:
+      APP_ENV: dev
+      APP_DEBUG: "1"
+      DATABASE_URL: "postgresql://aep:aep_dev_password@postgres:5432/core?serverVersion=17&charset=utf8"
+      MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=1"
+      REDIS_URL: "redis://redis:6379"
+      MERCURE_URL: "http://mercure/.well-known/mercure"
+      MERCURE_PUBLIC_URL: "http://localhost:8080/.well-known/mercure"
+      MERCURE_JWT_SECRET: "${MERCURE_JWT_SECRET:-dev-mercure-secret-change-me-0123456789abcdef}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:1.27-alpine
+    profiles: ["app"]
+    ports:
+      - "8000:80"
+    volumes:
+      - ./infrastructure/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./services/core-platform/public:/app/public:ro
+    depends_on:
+      - core-platform
+
+  ai-orchestrator:
+    build:
+      context: ./services/ai-orchestrator
+    profiles: ["app"]
+    environment:
+      APP_ENV: dev
+      APP_DEBUG: "1"
+      DATABASE_URL: "postgresql://aep:aep_dev_password@postgres:5432/ai?serverVersion=17&charset=utf8"
+      MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=1"
+      REDIS_URL: "redis://redis:6379"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  generation-service:
+    build:
+      context: ./services/generation-service
+    profiles: ["app"]
+    environment:
+      APP_ENV: dev
+      APP_DEBUG: "1"
+      DATABASE_URL: "postgresql://aep:aep_dev_password@postgres:5432/generation?serverVersion=17&charset=utf8"
+      MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=1"
+      REDIS_URL: "redis://redis:6379"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  sandbox-runner:
+    build:
+      context: ./services/sandbox-runner
+    profiles: ["app"]
+    environment:
+      SANDBOX_MAX_CPU: "1"
+      SANDBOX_MAX_MEMORY: "512M"
+      SANDBOX_TIMEOUT_SECONDS: "300"
+    networks:
+      - sandbox
+
+  ollama:
+    image: ollama/ollama
+    profiles: ["ai-local"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  ollama_data:
+
+networks:
+  sandbox:
+    name: aep-sandbox
+    internal: true

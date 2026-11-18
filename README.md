@@ -42,3 +42,7 @@ Construire une plateforme multi-tenant capable de créer des fonctionnalités à
 
 ## Statut
 Ce dossier constitue une base de cadrage et de conception. Les versions exactes des dépendances, les coûts cloud, la capacité réelle et la conformité sécurité doivent être confirmés lors du lot Infrastructure et par des tests reproductibles.
+
+## Démarrage technique
+
+Le squelette du monorepo (services Symfony, Docker Compose, contrats, frontend) est décrit dans [`GETTING_STARTED.md`](GETTING_STARTED.md).

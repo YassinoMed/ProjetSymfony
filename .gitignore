@@ -50,3 +50,9 @@
 
 # Embedded web-server pid file
 /.web-server-pid
+
+# Monorepo
+/.env
+/.env.local
+.DS_Store
+node_modules/
