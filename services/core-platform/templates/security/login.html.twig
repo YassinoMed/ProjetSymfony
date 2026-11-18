@@ -1,0 +1,28 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Connexion — Auto-Evolving Platform{% endblock %}
+
+{% block body %}
+    <section class="panel auth-card">
+        <h1>Connexion</h1>
+        <p class="muted">Accédez à votre espace de travail.</p>
+
+        {% if error %}
+            <div class="alert">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+        {% endif %}
+
+        <form method="post">
+            <label for="username">Adresse email</label>
+            <input type="email" value="{{ last_username }}" name="_username" id="username"
+                   autocomplete="email" required autofocus>
+
+            <label for="password">Mot de passe</label>
+            <input type="password" name="_password" id="password"
+                   autocomplete="current-password" required>
+
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+
+            <button class="btn" type="submit">Se connecter</button>
+        </form>
+    </section>
+{% endblock %}

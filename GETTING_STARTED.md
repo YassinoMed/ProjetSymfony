@@ -110,13 +110,44 @@ cd services/ai-orchestrator && php bin/phpunit
 cd services/generation-service && php bin/phpunit
 ```
 
-## 9. Prochaines étapes (Phase 1)
+## 9. Créer un utilisateur et un tenant
 
-1. Entités `Identity` (User, Role) et `Tenant` (Tenant, Membership).
-2. `TenantContext` injecté par requête.
-3. Migrations Doctrine versionnées.
-4. Authentification + RBAC + voters.
-5. Journal d'audit append-only.
-6. Premiers tests d'isolation multi-tenant.
+```bash
+cd services/core-platform
+
+# Utilisateur simple
+php bin/console app:create-user alice@example.com
+
+# Administrateur de plateforme
+php bin/console app:create-user admin@example.com --platform-admin
+
+# Tenant rattaché à un propriétaire
+php bin/console app:create-tenant "Acme Corp" acme-corp --owner=alice@example.com
+```
+
+Le mot de passe est demandé de façon masquée s'il n'est pas fourni en second argument.
+
+## 10. Contexte multi-tenant
+
+Le tenant actif est résolu à chaque requête par `TenantContextListener` :
+
+1. en-tête `X-Tenant-Id` (UUID) — vérifié côté serveur ;
+2. tenant stocké en session ;
+3. unique adhésion active de l'utilisateur.
+
+Un en-tête explicite invalide renvoie `400`, un tenant inactif ou une adhésion absente renvoie `403`.
+Le voter `TenantVoter` expose les attributs `TENANT_VIEW`, `TENANT_MANAGE`, `TENANT_AUDIT` et `TENANT_OWNER`.
+
+```bash
+curl -H "X-Tenant-Id: <uuid-du-tenant>" http://localhost:8000/
+```
+
+## 11. Prochaines étapes (Phase 1 / Phase 2)
+
+1. Journal d'audit append-only.
+2. Health checks et logs structurés.
+3. CI (lint, tests, analyse de vulnérabilités).
+4. Tests d'intégration PostgreSQL et tests négatifs d'isolation.
+5. Rate limiting et durcissement CSRF sur les futures API.
 
 Voir `PHASES.md` pour les critères de sortie de chaque phase.

@@ -1,0 +1,37 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Tableau de bord — Auto-Evolving Platform{% endblock %}
+
+{% block body %}
+    <section class="panel">
+        <h1>Tableau de bord</h1>
+        <p class="muted">Bienvenue {{ app.user.userIdentifier }}.</p>
+
+        {% if tenant and membership %}
+            <div class="grid">
+                <div class="card">
+                    <h2>Tenant actif</h2>
+                    <div class="value">{{ tenant.name }}</div>
+                    <p class="muted">Identifiant : {{ tenant.slug }}</p>
+                </div>
+                <div class="card">
+                    <h2>Votre rôle</h2>
+                    <div class="value">{{ membership.role.label }}</div>
+                    <p class="muted">Statut : {{ membership.status.value }}</p>
+                </div>
+                <div class="card">
+                    <h2>Rôles plateforme</h2>
+                    <div class="value">{{ app.user.roles|join(', ') }}</div>
+                </div>
+            </div>
+        {% else %}
+            <div class="card empty">
+                <h2>Aucun tenant actif</h2>
+                <p class="muted">
+                    Votre compte n'est rattaché à aucun tenant actif. Contactez un administrateur
+                    ou créez un tenant avec <code>app:create-tenant --owner={{ app.user.userIdentifier }}</code>.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}
