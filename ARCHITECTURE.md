@@ -1,7 +1,8 @@
 # ARCHITECTURE — Architecture logique et technique
 
 ## 1. Style
-Monolithe modulaire Symfony pour le Core, avec services techniques indépendants (PostgreSQL, Redis, RabbitMQ, Mercure, sandbox). Cette approche limite la complexité opérationnelle initiale tout en permettant une extraction ultérieure.
+
+Micro-services : chaque domaine métier et chaque service technique (PostgreSQL, Redis, RabbitMQ, Mercure, sandbox) tourne sur sa propre machine VM dédiée. Chaque micro-service est déployé, isolé, dimensionné et mis à jour indépendamment. Les VM communiquent via un réseau privé (API REST, messages et événements). Cette approche isole les pannes, simplifie le dimensionnement par service et renforce la sécurité par segmentation.
 
 ## 2. Domaines
 - Identity & Access : utilisateurs, rôles, permissions.
@@ -15,8 +16,8 @@ Monolithe modulaire Symfony pour le Core, avec services techniques indépendants
 
 ## 3. Frontières de confiance
 1. Navigateur → reverse proxy : TLS, rate limiting.
-2. Reverse proxy → Symfony : réseau privé.
-3. Symfony → base/queues : identités de service à privilèges minimaux.
+2. Reverse proxy → micro-service Core : réseau privé.
+3. Micro-service → base/queues : identités de service à privilèges minimaux.
 4. Orchestrateur → fournisseur IA : données minimisées, secrets protégés.
 5. Builder → sandbox : artefacts et tâches bornés, aucun accès privilégié.
 6. Sandbox → staging : promotion d'artefacts validés uniquement.
@@ -40,9 +41,12 @@ Les formulaires et vues sont rendus par des composants génériques. Les types d
 Réservée aux extensions non exprimables par le moteur de métadonnées. Le code est produit dans une sandbox éphémère, testé, signé et stocké comme artefact versionné. L'exécution éventuelle se fait dans un runtime séparé, avec permissions minimales.
 
 ## 7. Disponibilité et évolutivité
-- PHP-FPM horizontalement réplicable.
-- Workers Messenger scalables séparément.
-- PostgreSQL avec sauvegardes, supervision et stratégie HA selon budget.
-- Redis non utilisé comme unique stockage durable des tâches.
-- RabbitMQ durable et supervisé.
-- Fichiers dans un stockage objet, pas dans le conteneur applicatif.
+- Chaque micro-service sur sa propre VM, dimensionnable indépendamment.
+- PHP-FPM sur sa VM, réplicable par ajout de VMs.
+- Workers Messenger sur VM dédiée(s), scalables séparément.
+- PostgreSQL sur VM dédiée avec sauvegardes, supervision et stratégie HA selon budget.
+- Redis sur VM dédiée, non utilisé comme unique stockage durable des tâches.
+- RabbitMQ sur VM dédiée, durable et supervisé.
+- Mercure sur VM dédiée.
+- Sandbox sur VM dédiée et isolée, sans accès privilégié.
+- Fichiers dans un stockage objet, pas sur le disque des VMs applicatives.

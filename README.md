@@ -4,7 +4,7 @@
 Construire une plateforme multi-tenant capable de créer des fonctionnalités à la demande à partir de descriptions en langage naturel. Le socle privilégie la génération de métadonnées (JSON Schema, formulaires, vues et workflows) et réserve la génération de code PHP aux cas avancés, dans une sandbox isolée.
 
 ## Décisions de référence
-- Architecture : monolithe modulaire Symfony + services d'infrastructure conteneurisés.
+- Architecture : micro-services, chaque service sur sa propre machine VM dédiée.
 - Usage : environ 100 utilisateurs simultanés comme cible initiale de dimensionnement, à confirmer par tests de charge.
 - Hébergement : hybride Mac de développement + cloud de production/préproduction.
 - IA : hybride, avec fournisseurs externes et modèles locaux facultatifs.

@@ -14,7 +14,8 @@ Les durées sont indicatives et doivent être réestimées après audit techniqu
 
 ## Phase 1 — Socle et infrastructure
 - Symfony, PHP, Composer et CI.
-- Docker Compose local.
+- Provisionnement des VM dédiées par service (architecture micro-services).
+- Docker Compose local (développement uniquement).
 - PostgreSQL, Redis, RabbitMQ et Mercure.
 - Authentification, RBAC et tenant context.
 - Journal d'audit initial.

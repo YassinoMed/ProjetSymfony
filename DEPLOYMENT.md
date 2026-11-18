@@ -3,8 +3,8 @@
 ## 1. Environnements
 - Local : Mac M2 et Docker Compose.
 - CI : tests, analyse statique, scans et construction d'images.
-- Staging : environnement isolé avec données synthétiques.
-- Production : services privés, TLS, sauvegardes et supervision.
+- Staging : environnement isolé avec données synthétiques, VMs dédiées par service.
+- Production : VMs privées dédiées par service, TLS, sauvegardes et supervision.
 
 ## 2. Pipeline CI/CD
 1. Vérification format et syntaxe.
@@ -21,6 +21,7 @@
 12. Vérification post-déploiement.
 
 ## 3. Déploiement applicatif
+- Chaque micro-service est déployé sur sa propre VM dédiée.
 - Artefacts immuables et identifiés par digest.
 - Configuration externalisée.
 - Migrations compatibles avec déploiement progressif.
