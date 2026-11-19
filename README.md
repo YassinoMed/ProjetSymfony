@@ -41,7 +41,9 @@ Construire une plateforme multi-tenant capable de créer des fonctionnalités à
 | `BACKLOG.md` | Backlog initial priorisé |
 
 ## Statut
-Phases 1 à 3 livrées : socle applicatif, multi-tenant/sécurité et moteur CRUD dynamique. Les preuves reproductibles sont dans `PHASE2_REPORT.md` et `PHASE3_REPORT.md`. Les versions exactes des dépendances, les coûts cloud, la capacité réelle et la conformité sécurité restent à confirmer par les phases ultérieures et des tests reproductibles.
+Phases 1 à 4 livrées : socle applicatif, multi-tenant/sécurité, moteur CRUD dynamique et orchestrateur IA. Les preuves reproductibles sont dans `PHASE2_REPORT.md`, `PHASE3_REPORT.md` et `PHASE4_REPORT.md`. Les versions exactes des dépendances, les coûts cloud, la capacité réelle et la conformité sécurité restent à confirmer par les phases ultérieures et des tests reproductibles.
+
+La Phase 4 produit des propositions **en attente d'approbation humaine** ; aucune publication automatique n'est possible (aucun statut `published`, aucune route de publication, Déployeur en préflight seulement).
 
 ## Démarrage technique
 

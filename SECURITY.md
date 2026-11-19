@@ -36,6 +36,19 @@
 - Les colonnes, filtres, tris et champs de recherche sont limités aux champs déclarés dans le JSON Schema. Les valeurs sont liées en paramètres ; les fragments SQL variables se réduisent aux noms de champs validés et aux directions `ASC`/`DESC`.
 - Les définitions sont des **données** : elles ne contiennent ni code PHP, ni `$ref`, ni expression exécutable. Aucune fonctionnalité ne crée de fichier PHP.
 
+### Orchestrateur IA (Phase 4)
+- Base PostgreSQL `ai` séparée ; aucune jointure ni lecture des tables du Core. Les identifiants tenant/utilisateur sont opaques.
+- API interne protégée par `X-Internal-Token`, comparaison en temps constant, **échec fermé** : jeton absent, invalide ou vide en configuration → `401`.
+- En-têtes `X-Tenant-Id`, `X-User-Id`, `X-Actor-Role` validés ; rôle limité à `owner`, `admin`, `member`, `auditor`.
+- Toute lecture ou décision est recherchée par identifiant **et** tenant : un accès croisé renvoie `404`.
+- Corps JSON strict, clés inconnues refusées, y compris `published`.
+- Aucun statut `published` dans le schéma, aucune route `/publish`, Déployeur en préflight seulement. L'approbation humaine ne publie rien.
+- Idempotence : contrainte unique `(tenant_id, idempotency_key)` ; verrou pessimiste avant traitement ; une seule proposition par demande.
+- Reprises bornées (`AI_MAX_ATTEMPTS`), puis échec définitif avec erreur bornée.
+- RAG : filtre SQL tenant + rôle **avant** similarité ; rôles inconnus refusés ; fragments détectés comme injection **exclus du prompt** et signalés.
+- Documents et sorties de modèle traités comme des données non fiables ; validation Opis et allowlist avant persistance.
+- Fournisseurs : aucun secret, jeton interne ou contenu inter-tenant transmis ; cloud désactivé par défaut ; `stub` interdit en production (`AI_ALLOW_STUB=0`).
+
 ### Défenses complémentaires
 - PostgreSQL RLS reste prévu comme défense supplémentaire, pas comme remplacement des contrôles applicatifs (non activé en Phase 2).
 - Cache, fichiers, exports, événements Mercure et index vectoriels devront être cloisonnés par tenant dans les phases suivantes.
@@ -43,13 +56,14 @@
 ## 3. Agents IA
 - Aucun accès shell général.
 - Aucun accès root.
-- Outils allowlistés avec schémas d'entrée/sortie stricts.
+- Aucun outil métier autonome en Phase 4 : les agents lisent des données et produisent des structures validées.
 - Autorisation déterministe avant chaque action.
-- Les sorties du modèle sont des données non fiables.
-- Validation JSON Schema et limites de taille.
-- Protection contre prompt injection dans les documents RAG.
-- Secrets jamais transmis au modèle.
-- Quotas, timeouts, retries bornés et journalisation.
+- Les sorties du modèle sont des données non fiables, validées par `ArchitectSpecificationValidator` puis `FeatureDefinitionShapeValidator`.
+- Validation JSON Schema et limites de taille (30 champs, 32 Kio, 12 états, 40 transitions).
+- Protection contre prompt injection dans les documents RAG : filtre avant similarité, scan de motifs, exclusion du prompt et signalement à l'auditeur.
+- Secrets jamais transmis au modèle ; le fournisseur ne reçoit que les prompts nécessaires.
+- Quotas, timeouts, retries bornés et journalisation dans `ai_runs`.
+- Approbation humaine obligatoire avant toute action sensible ; publication structurellement impossible.
 
 ## 4. Sandbox de code
 - Conteneur non privilégié.
@@ -119,6 +133,7 @@ Les mêmes règles sont appliquées côté contrôleur et côté rendu (défense
 - Mutations membres : `tenant_admin` — 20/minute/tenant/utilisateur.
 - Audit : `audit_view` — 60/minute/tenant/utilisateur.
 - Mutations du moteur dynamique (définitions, versions, enregistrements, transitions, suppressions) : `feature_write` — 60/minute/tenant/utilisateur.
+- API interne AI : non limitée en Phase 4 ; l'accès est restreint par jeton interne et par le réseau. Un limiteur partagé est requis avant exposition.
 - Dépassement → `429` avec `Retry-After`.
 - En production multi-instance, le stockage du limiteur doit être partagé (Redis) pour être global.
 
@@ -141,4 +156,6 @@ Les mêmes règles sont appliquées côté contrôleur et côté rendu (défense
 - SAST/DAST automatisés et scan d'images conteneur.
 - RLS PostgreSQL et ancrage externe de l'audit.
 - Rotation automatisée des secrets et certificats.
+- Rate limiter partagé sur l'API interne AI et index vectoriel pgvector.
+- Chiffrement au repos des prompts et contenus RAG si l'exigence le confirme.
 - Tests de charge et revue sécurité indépendante (Phase 9).

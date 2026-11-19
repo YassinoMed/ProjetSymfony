@@ -38,6 +38,7 @@ Les durées sont indicatives et doivent être réestimées après audit techniqu
 **Critères de sortie :** une fonctionnalité CRUD complète est créée sans nouveau fichier PHP, avec permissions et tests.
 
 ## Phase 4 — AI Orchestrator
+**Statut :** terminée le 2026-11-19 — preuves et réserves dans `PHASE4_REPORT.md`.
 **Objectif :** orchestrer les agents IA de manière asynchrone.
 - Contrat de fournisseur IA.
 - Agent Architecte, Builder limité, Auditeur, Gouverneur, Déployeur.

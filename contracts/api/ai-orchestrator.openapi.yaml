@@ -1,0 +1,447 @@
+openapi: 3.1.0
+info:
+  title: AI Orchestrator — API interne
+  version: 1.0.0
+  description: |
+    API interne de l'orchestrateur IA (Phase 4).
+
+    Aucune route ne publie une proposition. Les statuts de proposition sont
+    limités à `awaiting_approval`, `approved` et `rejected` ; les réponses
+    exposent toujours `published: false` et `publication: forbidden`.
+
+    Toutes les routes `/internal/*` exigent `X-Internal-Token`. Le tenant est
+    transmis par `X-Tenant-Id` et revérifié côté service : un accès croisé
+    renvoie `404`.
+servers:
+  - url: http://127.0.0.1:8010
+    description: Développement local
+
+tags:
+  - name: health
+  - name: requests
+  - name: proposals
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Santé du service
+      security: []
+      responses:
+        '200':
+          description: Service disponible
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service, phase, publication]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+                  service:
+                    type: string
+                    const: ai-orchestrator
+                  phase:
+                    type: integer
+                    const: 4
+                  publication:
+                    type: string
+                    const: forbidden
+
+  /internal/ai/requests:
+    post:
+      tags: [requests]
+      summary: Créer une demande de génération
+      description: |
+        Création idempotente par couple `(tenant, idempotency_key)`.
+        La réponse contient la proposition si le pipeline s'est exécuté de
+        manière synchrone ; sinon `proposal` vaut `null` et le statut est
+        `queued`.
+      parameters:
+        - $ref: '#/components/parameters/InternalToken'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/UserIdOptional'
+        - $ref: '#/components/parameters/ActorRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [prompt]
+              properties:
+                prompt:
+                  type: string
+                  minLength: 10
+                  maxLength: 4000
+                idempotency_key:
+                  type: string
+                  pattern: '^[A-Za-z0-9._:-]{8,120}$'
+                correlation_id:
+                  type: string
+                  format: uuid
+      responses:
+        '202':
+          description: Demande créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestView'
+        '200':
+          description: Rejeu idempotent
+          headers:
+            Idempotent-Replay:
+              schema:
+                type: string
+                const: 'true'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: File asynchrone indisponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /internal/ai/requests/{id}:
+    get:
+      tags: [requests]
+      summary: Lire une demande et sa proposition
+      parameters:
+        - $ref: '#/components/parameters/InternalToken'
+        - $ref: '#/components/parameters/TenantId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Demande du tenant courant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /internal/ai/proposals/{id}:
+    get:
+      tags: [proposals]
+      summary: Lire une proposition
+      parameters:
+        - $ref: '#/components/parameters/InternalToken'
+        - $ref: '#/components/parameters/TenantId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Proposition du tenant courant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proposal'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /internal/ai/proposals/{id}/decision:
+    post:
+      tags: [proposals]
+      summary: Approuver ou rejeter une proposition
+      description: |
+        Une approbation ne publie rien : elle autorise seulement une phase
+        ultérieure. Une seconde décision renvoie `409`.
+      parameters:
+        - $ref: '#/components/parameters/InternalToken'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/UserIdRequired'
+        - $ref: '#/components/parameters/ActorRole'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [decision, reason]
+              properties:
+                decision:
+                  type: string
+                  enum: [approve, reject]
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Décision enregistrée, proposition non publiée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proposal'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Une décision a déjà été prise
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    InternalToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Token
+
+  parameters:
+    InternalToken:
+      name: X-Internal-Token
+      in: header
+      required: true
+      schema:
+        type: string
+    TenantId:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    UserIdOptional:
+      name: X-User-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+    UserIdRequired:
+      name: X-User-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ActorRole:
+      name: X-Actor-Role
+      in: header
+      required: true
+      schema:
+        type: string
+        enum: [owner, admin, member, auditor]
+
+  responses:
+    BadRequest:
+      description: En-tête, corps ou valeur invalide
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Jeton interne absent ou invalide
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Ressource inconnue ou appartenant à un autre tenant
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [unauthorized, invalid_request, not_found, conflict, queue_unavailable]
+        message:
+          type: string
+
+    RequestView:
+      type: object
+      required: [request_id, tenant_id, status, actor_role, attempts, created_at, updated_at, proposal]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued, analyzing, building, validating, awaiting_approval, approved, rejected, failed]
+        actor_role:
+          type: string
+          enum: [owner, admin, member, auditor]
+        provider:
+          type: [string, 'null']
+        attempts:
+          type: integer
+          minimum: 0
+        error:
+          type: [string, 'null']
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        proposal:
+          oneOf:
+            - $ref: '#/components/schemas/Proposal'
+            - type: 'null'
+
+    Proposal:
+      type: object
+      required:
+        - id
+        - status
+        - payload
+        - rationale
+        - risks
+        - citations
+        - policy
+        - agent_trace
+        - provider_meta
+        - created_at
+        - publication
+        - published
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [awaiting_approval, approved, rejected]
+        payload:
+          type: object
+          description: Définition `feature_definition` destinée au Core
+        rationale:
+          type: object
+          properties:
+            summary:
+              type: string
+            decisions:
+              type: array
+              items:
+                type: object
+            assumptions:
+              type: array
+              items:
+                type: string
+            open_questions:
+              type: array
+              items:
+                type: string
+        risks:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              severity:
+                type: string
+                enum: [low, medium, high]
+              message:
+                type: string
+              evidence:
+                type: string
+        citations:
+          type: array
+          items:
+            type: object
+        policy:
+          type: object
+          required: [status, requires_human_approval, publication, risk_level, checks]
+          properties:
+            status:
+              type: string
+              enum: [awaiting_approval, rejected]
+            requires_human_approval:
+              type: boolean
+              const: true
+            publication:
+              type: string
+              const: forbidden
+            risk_level:
+              type: string
+              enum: [low, medium, high]
+            checks:
+              type: array
+              items:
+                type: object
+        agent_trace:
+          type: array
+          items:
+            type: object
+            properties:
+              agent:
+                type: string
+                enum: [architect, builder, auditor, governor, deployer]
+              status:
+                type: string
+                enum: [succeeded, failed]
+              summary:
+                type: [string, 'null']
+              provider:
+                type: [string, 'null']
+              model:
+                type: [string, 'null']
+              latency_ms:
+                type: [integer, 'null']
+        provider_meta:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        decided_at:
+          type: [string, 'null']
+          format: date-time
+        decided_by:
+          type: [string, 'null']
+          format: uuid
+        decision_reason:
+          type: [string, 'null']
+        publication:
+          type: string
+          const: forbidden
+        published:
+          type: boolean
+          const: false

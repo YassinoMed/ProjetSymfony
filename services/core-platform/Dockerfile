@@ -8,8 +8,8 @@ COPY . .
 RUN composer dump-autoload --no-dev --optimize --classmap-authoritative
 
 FROM php:8.5-fpm-alpine AS runtime
-RUN apk add --no-cache icu-dev libzip-dev postgresql-dev oniguruma-dev $PHPIZE_DEPS \
-    && docker-php-ext-install intl pdo_pgsql zip opcache \
+RUN apk add --no-cache icu-dev libzip-dev libpq-dev oniguruma-dev $PHPIZE_DEPS \
+    && docker-php-ext-install -j1 intl pdo_pgsql zip \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && apk del $PHPIZE_DEPS

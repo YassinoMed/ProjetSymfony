@@ -8,8 +8,8 @@ COPY . .
 RUN composer dump-autoload --no-dev --optimize --classmap-authoritative
 
 FROM php:8.5-cli-alpine AS runtime
-RUN apk add --no-cache icu-dev libzip-dev postgresql-dev $PHPIZE_DEPS \
-    && docker-php-ext-install intl pdo_pgsql zip opcache \
+RUN apk add --no-cache libpq-dev $PHPIZE_DEPS \
+    && docker-php-ext-install -j1 pdo_pgsql \
     && apk del $PHPIZE_DEPS
 
 WORKDIR /app

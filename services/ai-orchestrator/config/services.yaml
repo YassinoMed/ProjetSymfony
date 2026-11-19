@@ -4,8 +4,6 @@
 # Files in the packages/ subdirectory configure your dependencies.
 # See also https://symfony.com/doc/current/service_container/import.html
 
-# Put parameters here that don't need to change on each machine where the app is deployed
-# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
 
 services:
@@ -18,6 +16,54 @@ services:
     # this creates a service per class whose id is the fully-qualified class name
     App\:
         resource: '../src/'
+        exclude:
+            - '../src/Entity/'
+            - '../src/Kernel.php'
 
-    # add more service definitions when explicit configuration is needed
-    # please note that last definitions always *replace* previous ones
+    # --- Fournisseurs IA -------------------------------------------------
+    App\Provider\DeterministicProvider:
+        arguments:
+            $enabled: '%env(bool:AI_ALLOW_STUB)%'
+        tags: ['app.ai_provider']
+
+    App\Provider\OllamaProvider:
+        arguments:
+            $baseUrl: '%env(OLLAMA_URL)%'
+            $model: '%env(OLLAMA_MODEL)%'
+            $enabled: '%env(bool:AI_ENABLE_OLLAMA)%'
+        tags: ['app.ai_provider']
+
+    App\Provider\OpenAiCompatibleProvider:
+        arguments:
+            $baseUrl: '%env(AI_CLOUD_BASE_URL)%'
+            $apiKey: '%env(AI_CLOUD_API_KEY)%'
+            $model: '%env(AI_CLOUD_MODEL)%'
+            $enabled: '%env(bool:AI_ENABLE_CLOUD)%'
+        tags: ['app.ai_provider']
+
+    App\Provider\ProviderRegistry:
+        arguments:
+            $providers: !tagged_iterator app.ai_provider
+            $chain: '%env(AI_PROVIDER_CHAIN)%'
+
+    # --- RAG -------------------------------------------------------------
+    App\RAG\Embedding\EmbeddingProviderInterface: '@App\RAG\Embedding\EmbeddingProviderSelector'
+
+    App\RAG\Embedding\EmbeddingProviderSelector:
+        arguments:
+            $selected: '%env(RAG_EMBEDDING_PROVIDER)%'
+
+    App\RAG\Embedding\OllamaEmbeddingProvider:
+        arguments:
+            $baseUrl: '%env(OLLAMA_URL)%'
+            $model: '%env(RAG_OLLAMA_EMBEDDING_MODEL)%'
+            $enabled: '%env(bool:AI_ENABLE_OLLAMA)%'
+
+    # --- Sécurité et messagerie -----------------------------------------
+    App\Security\InternalTokenListener:
+        arguments:
+            $expectedToken: '%env(AI_INTERNAL_TOKEN)%'
+
+    App\Message\RunGenerationHandler:
+        arguments:
+            $maxAttempts: '%env(int:AI_MAX_ATTEMPTS)%'

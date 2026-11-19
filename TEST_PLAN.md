@@ -52,3 +52,52 @@ Pour chaque campagne :
 
 ## 6. Règle de verdict
 PASS uniquement si tous les critères obligatoires sont démontrés. Une absence de test ou de preuve ne vaut pas PASS. Les réserves doivent être explicites et bloquantes ou non bloquantes.
+
+## 7. Phase 4 — Orchestrateur IA
+
+### Commandes
+
+```bash
+cd services/ai-orchestrator
+export DATABASE_URL='postgresql://aep:aep_dev_password@127.0.0.1:5432/ai?serverVersion=17&charset=utf8'
+php bin/console doctrine:migrations:migrate --env=test --no-interaction
+php bin/phpunit
+```
+
+### Couverture livrée
+
+| Suite | Tests | Assertions | Objet |
+|---|---:|---:|---|
+| `tests/Unit` | 80 | 144 | Fournisseurs, validateurs, agents, RAG, vecteurs |
+| `tests/Integration` | 23 | 80 | RAG, pipeline, décision, handler, PostgreSQL |
+| `tests/Controller` | 14 | 71 | API interne, jeton, en-têtes, idempotence, cross-tenant |
+| **Total** | **117** | **295** | |
+
+### Scénarios Phase 4 démontrés
+
+1. Une demande produit une proposition `awaiting_approval` avec payload, rationale, risques, citations, politique et trace des quatre agents.
+2. `published` vaut `false`, `publication` vaut `forbidden`, et aucun statut `published` n'existe en base.
+3. Aucune route `/publish` n'existe (`404`).
+4. Une proposition approuvée reste non publiée ; le Déployeur refuse toute publication.
+5. Un jeton interne absent ou invalide renvoie `401`.
+6. Un accès inter-tenant renvoie `404` pour une demande comme pour une proposition.
+7. Une clé d'idempotence rejouée par le même tenant ne crée pas de doublon ; la même clé dans un autre tenant crée une demande distincte.
+8. Un message dupliqué ne crée pas de seconde proposition ; le verrou pessimiste empêche deux workers de traiter la même demande.
+9. Une panne fournisseur est reprise jusqu'à `AI_MAX_ATTEMPTS`, puis la demande passe `failed` avec l'erreur conservée.
+10. Un document RAG réservé à `owner` n'est pas retourné à un `member`.
+11. Un fragment contenant une injection est exclu du prompt mais signalé à l'auditeur et au gouverneur.
+12. Une spécification hors allowlist, un champ réservé, un état ou un rôle inconnu sont refusés avant persistance.
+13. Une seconde décision sur la même proposition renvoie `409`.
+14. Un motif de décision absent ou hors bornes renvoie `400`.
+
+### Preuves attendues
+
+- sortie `OK (117 tests, 295 assertions)` ;
+- migration up/down/re-up de `Version20261119090000` ;
+- `lint:container`, `lint:yaml`, `doctrine:schema:validate` ;
+- `GET /health` → `publication: forbidden` ;
+- `POST /internal/ai/requests` → `202`, proposition non publiée ;
+- `POST /internal/ai/proposals/{id}/publish` → `404` ;
+- `composer audit` sans avis.
+
+Les preuves détaillées et les réserves sont dans `PHASE4_REPORT.md`.

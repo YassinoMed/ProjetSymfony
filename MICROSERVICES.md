@@ -40,25 +40,22 @@ services/core-platform/
 ```
 services/ai-orchestrator/
 ├── src/
-│   ├── Agents/
-│   │   ├── ArchitectAgent/
-│   │   ├── BuilderAgent/
-│   │   ├── AuditorAgent/
-│   │   ├── GovernorAgent/
-│   │   └── DeployerAgent/
-│   ├── Providers/
-│   │   ├── OpenAI/
-│   │   ├── Ollama/
-│   │   └── OtherProviders/
-│   ├── RAG/
-│   ├── PromptManagement/
-│   ├── ToolRegistry/
-│   ├── Policies/
-│   └── Messaging/
-├── tests/
+│   ├── Agent/           # Architecte, Builder, Auditeur, Gouverneur, Déployeur
+│   ├── Provider/        # Contrat + stub, Ollama, compatible OpenAI
+│   ├── RAG/             # Indexation, recherche filtrée, injection, embeddings
+│   ├── Proposal/        # Pipeline, décision, validateurs
+│   ├── Message/         # Message et handler Messenger
+│   ├── Controller/      # API interne
+│   ├── Security/        # Jeton interne
+│   ├── Entity/          # Demandes, exécutions, propositions, RAG
+│   └── Repository/
+├── migrations/
+└── tests/
 ```
 
 **Règle :** les cinq agents sont des composants indépendants au sein de l'Orchestrateur, pas cinq microservices.
+
+**Livré en Phase 4 :** pipeline Architecte → Builder → Auditeur → Gouverneur, propositions en attente d'approbation humaine, API interne protégée par jeton, RAG filtré avant similarité, file Messenger avec verrou et reprises bornées. Le Déployeur est en préflight seulement : aucune publication. Voir `PHASE4_REPORT.md`.
 
 ## 3. Generation Service
 

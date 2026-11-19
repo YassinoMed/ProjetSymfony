@@ -22,16 +22,17 @@
 - [ ] Ajouter activation/désactivation d'une fonctionnalité par tenant.
 
 ## P2 — IA et gouvernance
-- [ ] Définir interface fournisseur IA.
-- [ ] Ajouter Agent Architecte.
-- [ ] Ajouter Agent Builder.
-- [ ] Ajouter Agent Auditeur.
-- [ ] Ajouter Agent Gouverneur.
-- [ ] Ajouter Agent Déployeur.
-- [ ] Orchestrer avec Messenger.
-- [ ] Ajouter approbations humaines.
-- [ ] Ajouter audit et idempotence.
-- [ ] Ajouter Mercure pour progression.
+- [x] Définir interface fournisseur IA.
+- [x] Ajouter Agent Architecte.
+- [x] Ajouter Agent Builder.
+- [x] Ajouter Agent Auditeur.
+- [x] Ajouter Agent Gouverneur.
+- [x] Ajouter Agent Déployeur (préflight seulement).
+- [x] Orchestrer avec Messenger.
+- [x] Ajouter approbations humaines.
+- [x] Ajouter audit et idempotence.
+- [ ] Ajouter Mercure pour progression (reporté en Phase 7).
+- [ ] Ajouter un rate limiter partagé sur l'API interne AI.
 
 ## P3 — Industrialisation
 - [ ] Construire sandbox isolée.

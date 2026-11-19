@@ -7,15 +7,19 @@ framework:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 retry_strategy:
                     max_retries: 3
+                    delay: 1000
                     multiplier: 2
+                    max_delay: 15000
             failed: 'doctrine://default?queue_name=failed'
             sync: 'sync://'
 
         routing:
-            # 'App\Message\YourMessage': async
+            App\Message\RunGenerationRequest: async
 
 when@test:
     framework:
         messenger:
             transports:
                 async: 'in-memory://'
+            routing:
+                App\Message\RunGenerationRequest: sync

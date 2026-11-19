@@ -36,7 +36,7 @@ compose.staging.yaml
 
 `docker-compose.yml` orchestre :
 - Core Platform (PHP-FPM + nginx)
-- AI Orchestrator
+- AI Orchestrator (worker Messenger + API interne `ai-orchestrator-api`, port hôte `8010`)
 - Generation Service
 - Sandbox Runner
 - PostgreSQL 17 + pgvector

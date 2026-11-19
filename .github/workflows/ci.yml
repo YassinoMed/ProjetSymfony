@@ -74,13 +74,82 @@ jobs:
       - name: Tests unitaires, intégration et sécurité
         run: php bin/phpunit
 
+  ai-orchestrator:
+    name: AI Orchestrator (lint, migrations, tests, audit)
+    runs-on: ubuntu-latest
+    env:
+      APP_SECRET: ci-only-secret-not-used-in-production
+      DATABASE_URL: postgresql://aep:aep_dev_password@127.0.0.1:5432/ai?serverVersion=17&charset=utf8
+      AI_INTERNAL_TOKEN: test-internal-token
+      AI_PROVIDER_CHAIN: stub
+      AI_ALLOW_STUB: '1'
+      AI_ENABLE_OLLAMA: '0'
+      AI_ENABLE_CLOUD: '0'
+      RAG_EMBEDDING_PROVIDER: deterministic
+      AI_MAX_ATTEMPTS: '3'
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: aep
+          POSTGRES_PASSWORD: aep_dev_password
+          POSTGRES_DB: ai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aep -d ai"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    defaults:
+      run:
+        working-directory: services/ai-orchestrator
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: ctype, iconv, intl, mbstring, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - name: Installer les dépendances
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Scanner les dépendances PHP
+        run: composer audit --locked --no-interaction
+
+      - name: Vérifier la syntaxe PHP
+        run: find src tests -name '*.php' -exec php -l {} \;
+
+      - name: Lint YAML et conteneur
+        run: |
+          php bin/console lint:yaml config --parse-tags
+          php bin/console lint:container
+
+      - name: Créer la base de test
+        run: PGPASSWORD=aep_dev_password createdb -h 127.0.0.1 -U aep ai_test
+
+      - name: Appliquer les migrations
+        run: php bin/console doctrine:migrations:migrate --env=test --no-interaction
+
+      - name: Vérifier le rollback Phase 4
+        run: |
+          php bin/console doctrine:migrations:migrate prev --env=test --no-interaction
+          php bin/console doctrine:migrations:migrate --env=test --no-interaction
+
+      - name: Tests unitaires, intégration et sécurité
+        run: php bin/phpunit
+
   services:
     name: ${{ matrix.service }} (lint, audit)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        service: [ai-orchestrator, generation-service, sandbox-runner]
+        service: [generation-service, sandbox-runner]
     defaults:
       run:
         working-directory: services/${{ matrix.service }}

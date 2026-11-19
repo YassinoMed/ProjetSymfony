@@ -1,5 +1,24 @@
 name: auto-evolving-platform
 
+x-ai-environment: &ai-environment
+  APP_ENV: dev
+  APP_DEBUG: "1"
+  DATABASE_URL: "postgresql://aep:aep_dev_password@postgres:5432/ai?serverVersion=17&charset=utf8"
+  MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=1"
+  AI_INTERNAL_TOKEN: "${AI_INTERNAL_TOKEN:-dev-internal-token-change-me}"
+  AI_PROVIDER_CHAIN: "${AI_PROVIDER_CHAIN:-stub,ollama}"
+  AI_ALLOW_STUB: "${AI_ALLOW_STUB:-1}"
+  AI_ENABLE_OLLAMA: "${AI_ENABLE_OLLAMA:-1}"
+  AI_ENABLE_CLOUD: "${AI_ENABLE_CLOUD:-0}"
+  AI_CLOUD_BASE_URL: "${AI_CLOUD_BASE_URL:-https://api.openai.com/v1}"
+  AI_CLOUD_API_KEY: "${AI_CLOUD_API_KEY:-}"
+  AI_CLOUD_MODEL: "${AI_CLOUD_MODEL:-gpt-4o-mini}"
+  OLLAMA_URL: "http://ollama:11434"
+  OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.2}"
+  RAG_EMBEDDING_PROVIDER: "${RAG_EMBEDDING_PROVIDER:-deterministic}"
+  RAG_OLLAMA_EMBEDDING_MODEL: "${RAG_OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}"
+  AI_MAX_ATTEMPTS: "${AI_MAX_ATTEMPTS:-3}"
+
 services:
   postgres:
     image: pgvector/pgvector:pg17
@@ -8,7 +27,7 @@ services:
       POSTGRES_PASSWORD: aep_dev_password
       POSTGRES_DB: core
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -22,7 +41,7 @@ services:
     image: redis:7-alpine
     command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
       - ./infrastructure/docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -38,8 +57,8 @@ services:
       RABBITMQ_DEFAULT_USER: aep
       RABBITMQ_DEFAULT_PASS: aep_dev_password
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "${RABBITMQ_HOST_PORT:-5672}:5672"
+      - "${RABBITMQ_MGMT_HOST_PORT:-15672}:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -55,10 +74,10 @@ services:
       MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:-dev-mercure-secret-change-me-0123456789abcdef}
       MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET:-dev-mercure-secret-change-me-0123456789abcdef}
       MERCURE_EXTRA_DIRECTIVES: |
-        anonymous 1
-        cors_origins http://localhost:8000 http://localhost:3000
+        anonymous
+        cors_origins http://localhost:8000 http://localhost:3000 http://localhost:8001
     ports:
-      - "8080:80"
+      - "${MERCURE_HOST_PORT:-8080}:80"
 
   core-platform:
     build:
@@ -71,7 +90,7 @@ services:
       MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=1"
       REDIS_URL: "redis://redis:6379"
       MERCURE_URL: "http://mercure/.well-known/mercure"
-      MERCURE_PUBLIC_URL: "http://localhost:8080/.well-known/mercure"
+      MERCURE_PUBLIC_URL: "http://localhost:${MERCURE_HOST_PORT:-8080}/.well-known/mercure"
       MERCURE_JWT_SECRET: "${MERCURE_JWT_SECRET:-dev-mercure-secret-change-me-0123456789abcdef}"
     depends_on:
       postgres:
@@ -83,7 +102,7 @@ services:
     image: nginx:1.27-alpine
     profiles: ["app"]
     ports:
-      - "8000:80"
+      - "${APP_HOST_PORT:-8000}:80"
     volumes:
       - ./infrastructure/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./infrastructure/nginx/security-headers.conf:/etc/nginx/conf.d/security-headers.conf:ro
@@ -98,7 +117,7 @@ services:
     image: nginx:1.27-alpine
     profiles: ["app-tls"]
     ports:
-      - "8443:443"
+      - "${TLS_HOST_PORT:-8443}:443"
     volumes:
       - ./infrastructure/nginx/tls.conf:/etc/nginx/conf.d/default.conf:ro
       - ./infrastructure/nginx/security-headers.conf:/etc/nginx/conf.d/security-headers.conf:ro
@@ -110,13 +129,22 @@ services:
   ai-orchestrator:
     build:
       context: ./services/ai-orchestrator
+    image: auto-evolving-platform-ai-orchestrator:latest
     profiles: ["app"]
-    environment:
-      APP_ENV: dev
-      APP_DEBUG: "1"
-      DATABASE_URL: "postgresql://aep:aep_dev_password@postgres:5432/ai?serverVersion=17&charset=utf8"
-      MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=1"
-      REDIS_URL: "redis://redis:6379"
+    environment: *ai-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  ai-orchestrator-api:
+    build:
+      context: ./services/ai-orchestrator
+    image: auto-evolving-platform-ai-orchestrator:latest
+    profiles: ["app"]
+    command: ["php", "-S", "0.0.0.0:8080", "-t", "public", "public/index.php"]
+    environment: *ai-environment
+    ports:
+      - "${AI_HOST_PORT:-8010}:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -150,7 +178,7 @@ services:
     image: ollama/ollama
     profiles: ["ai-local"]
     ports:
-      - "11434:11434"
+      - "${OLLAMA_HOST_PORT:-11434}:11434"
     volumes:
       - ollama_data:/root/.ollama
 

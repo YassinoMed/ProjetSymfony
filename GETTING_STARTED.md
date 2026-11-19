@@ -137,6 +137,19 @@ cd services/ai-orchestrator && php bin/phpunit
 cd services/generation-service && php bin/phpunit
 ```
 
+### Tests de l'orchestrateur IA
+
+Les tests IA utilisent la base `ai_test` (suffixe `_test` appliqué par `when@test`).
+
+```bash
+cd services/ai-orchestrator
+export DATABASE_URL='postgresql://aep:aep_dev_password@127.0.0.1:5432/ai?serverVersion=17&charset=utf8'
+php bin/console doctrine:migrations:migrate --env=test --no-interaction
+php bin/phpunit
+```
+
+En environnement de test, Messenger route `RunGenerationRequest` vers `sync://` : les tests HTTP exécutent réellement le pipeline. Les tests d'intégration vident les tables avant et après chaque test ; ils sont marqués `skipped` si le schéma Phase 4 est absent.
+
 ## 9. Créer un utilisateur et un tenant
 
 ```bash
@@ -230,7 +243,94 @@ php bin/phpunit tests/Controller/FeatureEngineHttpTest.php
 
 Les deux derniers nécessitent PostgreSQL et les migrations Phase 3.
 
-## 13. TLS en local
+## 13. Orchestrateur IA (Phase 4)
+
+Le service `services/ai-orchestrator` utilise sa propre base `ai`. Il ne lit jamais les tables du Core : il reçoit des identifiants tenant/utilisateur opaques et retourne des propositions.
+
+### Démarrage local
+
+```bash
+cd services/ai-orchestrator
+composer install
+php bin/console doctrine:migrations:migrate --no-interaction
+php bin/console messenger:setup-transports
+php bin/console messenger:consume async -vv   # worker
+
+# API interne dans un second terminal
+php -S 127.0.0.1:8010 -t public public/index.php
+```
+
+Ou avec Docker :
+
+```bash
+docker compose --profile app up -d postgres ai-orchestrator ai-orchestrator-api
+# API : http://127.0.0.1:8010
+```
+
+### Variables principales
+
+| Variable | Défaut dev | Rôle |
+|---|---|---|
+| `DATABASE_URL` | base `ai` | Stockage du service |
+| `MESSENGER_TRANSPORT_DSN` | `doctrine://default` | File asynchrone |
+| `AI_INTERNAL_TOKEN` | `dev-internal-token-change-me` | Jeton `X-Internal-Token` |
+| `AI_PROVIDER_CHAIN` | `stub,ollama` | Ordre des fournisseurs |
+| `AI_ALLOW_STUB` | `1` | Autorise le fournisseur déterministe |
+| `AI_ENABLE_OLLAMA` | `1` | Active Ollama |
+| `OLLAMA_URL` / `OLLAMA_MODEL` | `http://127.0.0.1:11434` / `llama3.2` | Modèle local |
+| `AI_ENABLE_CLOUD` | `0` | Active le fournisseur compatible OpenAI |
+| `AI_CLOUD_BASE_URL` / `AI_CLOUD_API_KEY` / `AI_CLOUD_MODEL` | OpenAI / vide / `gpt-4o-mini` | Fournisseur cloud |
+| `RAG_EMBEDDING_PROVIDER` | `deterministic` | `deterministic` ou `ollama` |
+| `AI_MAX_ATTEMPTS` | `3` | Reprises avant échec définitif |
+
+En production : `AI_ALLOW_STUB=0`, jeton interne long et aléatoire, clés fournisseur injectées par le gestionnaire de secrets.
+
+### Routes internes
+
+Toutes exigent `X-Internal-Token` (sauf `/health`) et les en-têtes `X-Tenant-Id`, `X-User-Id` (décision), `X-Actor-Role`.
+
+| Route | Méthode | Objet |
+|---|---|---|
+| `/health` | GET | Santé, `publication: forbidden` |
+| `/internal/ai/requests` | POST | Créer une demande (`prompt`, `idempotency_key`) |
+| `/internal/ai/requests/{id}` | GET | Statut et proposition |
+| `/internal/ai/proposals/{id}` | GET | Proposition complète |
+| `/internal/ai/proposals/{id}/decision` | POST | `approve` ou `reject` avec motif |
+
+Exemple :
+
+```bash
+curl -sS -X POST http://127.0.0.1:8010/internal/ai/requests \
+  -H 'Content-Type: application/json' \
+  -H 'X-Internal-Token: dev-internal-token-change-me' \
+  -H "X-Tenant-Id: $(uuidgen | tr 'A-Z' 'a-z')" \
+  -H "X-User-Id: $(uuidgen | tr 'A-Z' 'a-z')" \
+  -H 'X-Actor-Role: member' \
+  -d '{"prompt":"Créer une gestion des tâches avec priorités et échéances.","idempotency_key":"demo-1"}'
+```
+
+Réponse : `202`, proposition `awaiting_approval`, `published: false`, `publication: forbidden`. La même clé rejouée renvoie `200` avec `Idempotent-Replay: true`.
+
+### Indexer un document RAG
+
+```bash
+php bin/console ai:rag:index <tenant-uuid> ./politique.txt \
+  --title="Politique de facturation" \
+  --source="doc://facturation" \
+  --roles=owner,admin
+```
+
+Le filtrage tenant + rôle est appliqué **avant** la similarité. Un fragment contenant une injection connue est exclu du prompt et signalé à l'auditeur.
+
+### Ollama local
+
+```bash
+docker compose --profile ai-local up -d ollama
+docker compose exec ollama ollama pull llama3.2
+# puis AI_ENABLE_OLLAMA=1 et AI_PROVIDER_CHAIN=ollama,stub
+```
+
+## 14. TLS en local
 
 ```bash
 ./infrastructure/nginx/generate-dev-cert.sh
@@ -240,18 +340,17 @@ docker compose --profile app --profile app-tls up -d --build
 
 `infrastructure/nginx/tls.conf` applique TLS 1.2/1.3, HSTS et la redirection HTTP → HTTPS. Les certificats (`infrastructure/nginx/certs/*.pem`) ne sont jamais commités.
 
-## 14. CI et scans de dépendances
+## 15. CI et scans de dépendances
 
-- `.github/workflows/ci.yml` : lint YAML/conteneur/Twig, migrations up/down, suite PHPUnit complète, `composer audit`, `npm audit`, build frontend.
+- `.github/workflows/ci.yml` : lint YAML/conteneur/Twig, migrations up/down, suite PHPUnit complète du Core, tests de l'orchestrateur IA avec PostgreSQL, `composer audit`, `npm audit`, build frontend.
 - `.github/dependabot.yml` : mises à jour hebdomadaires Composer, npm, GitHub Actions et Docker.
 - Les lockfiles (`composer.lock`, `package-lock.json`) sont versionnés.
 
-## 15. Prochaines étapes (Phase 4)
+## 16. Prochaines étapes (Phase 5)
 
-1. Contrat de fournisseur IA et orchestration asynchrone.
-2. Agents Architecte, Builder limité, Auditeur, Gouverneur et Déployeur.
-3. File RabbitMQ, retries, timeouts et idempotence.
-4. RAG avec filtrage des documents par tenant et permissions.
-5. Fournisseurs cloud et Ollama local.
+1. Transformer les propositions approuvées en artefacts versionnés.
+2. Générer schémas JSON, formulaires et workflows.
+3. Réserver la génération AST/PHP aux cas avancés, avec contrôles stricts.
+4. Valider et signer les métadonnées avant promotion.
 
-Voir `PHASES.md` pour les critères de sortie de chaque phase et `PHASE3_REPORT.md` pour les preuves de la phase courante.
+Voir `PHASES.md` pour les critères de sortie de chaque phase et `PHASE4_REPORT.md` pour les preuves de la phase courante.

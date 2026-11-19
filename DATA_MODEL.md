@@ -138,6 +138,84 @@
 - event_hash
 - occurred_at
 
+## 1bis. Base `ai` — orchestrateur (Phase 4)
+
+Chaque service possède sa propre base PostgreSQL. Le service AI utilise la base `ai` et ne référence jamais les tables du Core par clé étrangère : `tenant_id`, `requested_by` et `decided_by` sont des UUID opaques.
+
+### ai_requests
+- id (UUID)
+- tenant_id (UUID)
+- requested_by (UUID, nullable)
+- prompt (TEXT)
+- status (`queued`, `analyzing`, `building`, `validating`, `awaiting_approval`, `approved`, `rejected`, `failed`)
+- actor_role (`owner`, `admin`, `member`, `auditor`)
+- idempotency_key
+- correlation_id (UUID)
+- provider (nullable)
+- attempts (INT ≥ 0)
+- error (TEXT, nullable, borné à 2000)
+- created_at, updated_at
+- unique `(tenant_id, idempotency_key)`
+- index `(tenant_id, status, created_at)`
+- check SQL interdisant tout statut hors liste
+
+### ai_runs
+- id (UUID)
+- request_id → `ai_requests` (CASCADE)
+- agent (`architect`, `builder`, `auditor`, `governor`, `deployer`)
+- status (`succeeded`, `failed`)
+- provider, model (nullable)
+- latency_ms, input_tokens, output_tokens (nullable)
+- summary, error (nullable)
+- started_at, finished_at (nullable)
+- index `(request_id, started_at)`
+
+### ai_proposals
+- id (UUID)
+- request_id → `ai_requests` (CASCADE), **unique** : une proposition par demande
+- status (`awaiting_approval`, `approved`, `rejected`) — **aucun statut `published`**
+- payload (JSONB)
+- rationale (JSONB)
+- risks (JSONB)
+- citations (JSONB)
+- policy (JSONB)
+- agent_trace (JSONB)
+- provider_meta (JSONB)
+- created_at, decided_at (nullable), decided_by (nullable), decision_reason (nullable)
+- check SQL interdisant tout statut hors liste
+
+### rag_documents
+- id (UUID)
+- tenant_id (UUID)
+- title
+- source
+- content (TEXT)
+- allowed_roles (JSONB : `owner`, `admin`, `member`, `auditor`)
+- checksum (SHA-256)
+- created_by (nullable)
+- created_at
+- unique `(tenant_id, checksum)`
+- index `(tenant_id, created_at)`
+
+### rag_chunks
+- id (UUID)
+- document_id → `rag_documents` (CASCADE)
+- ordinal (INT ≥ 0)
+- content (TEXT)
+- embedding (JSONB)
+- created_at
+- unique `(document_id, ordinal)`
+
+### messenger_messages
+- id, body, headers, queue_name, created_at, available_at, delivered_at
+- index Messenger `(queue_name, available_at, delivered_at, id)`
+
+### Règles Phase 4
+- Aucune publication n'est représentable : ni statut, ni table, ni route.
+- Les embeddings sont stockés en JSONB et comparés en PHP ; pgvector n'est pas encore indexé.
+- Les prompts et contenus RAG sont en clair ; le chiffrement au repos reste à décider.
+- Les décisions humaines sont conservées avec acteur, horodatage et motif.
+
 ## 2. Indexation
 - B-tree sur tenant_id, status, created_at et clés étrangères.
 - GIN sur JSONB uniquement pour les chemins réellement interrogés.
