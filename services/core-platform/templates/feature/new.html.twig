@@ -1,0 +1,29 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Nouvelle fonctionnalité — Auto-Evolving Platform{% endblock %}
+
+{% block body %}
+    <section class="panel">
+        <div class="toolbar">
+            <div>
+                <h1>Nouvelle fonctionnalité</h1>
+                <p class="muted">{{ tenant.name }} — publiez une définition JSON validée.</p>
+            </div>
+            <a class="btn-ghost" href="{{ path('app_features') }}">Retour</a>
+        </div>
+
+        <p class="muted-small">
+            Allowlist stricte : primitives et tableaux de primitives uniquement. Les clés <code>$ref</code>,
+            <code>pattern</code>, les objets imbriqués et les clés inconnues sont refusés côté serveur.
+        </p>
+
+        {{ form_start(form) }}
+            {{ form_errors(form) }}
+            {{ form_row(form.key) }}
+            {{ form_row(form.name) }}
+            {{ form_row(form.description) }}
+            {{ form_row(form.definition) }}
+            <button class="btn" type="submit">Créer la fonctionnalité (version 1)</button>
+        {{ form_end(form) }}
+    </section>
+{% endblock %}

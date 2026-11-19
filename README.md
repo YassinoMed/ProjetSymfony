@@ -41,7 +41,7 @@ Construire une plateforme multi-tenant capable de créer des fonctionnalités à
 | `BACKLOG.md` | Backlog initial priorisé |
 
 ## Statut
-Ce dossier constitue une base de cadrage et de conception. Les versions exactes des dépendances, les coûts cloud, la capacité réelle et la conformité sécurité doivent être confirmés lors du lot Infrastructure et par des tests reproductibles.
+Phases 1 à 3 livrées : socle applicatif, multi-tenant/sécurité et moteur CRUD dynamique. Les preuves reproductibles sont dans `PHASE2_REPORT.md` et `PHASE3_REPORT.md`. Les versions exactes des dépendances, les coûts cloud, la capacité réelle et la conformité sécurité restent à confirmer par les phases ultérieures et des tests reproductibles.
 
 ## Démarrage technique
 

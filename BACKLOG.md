@@ -11,14 +11,15 @@
 - [x] Ajouter CI minimale.
 
 ## P1 — MVP dynamique
-- [ ] Définir JSON Schema versionné.
-- [ ] Implémenter validation stricte.
-- [ ] Construire formulaire dynamique.
-- [ ] Construire liste, détail et filtres dynamiques.
-- [ ] Implémenter CRUD générique.
-- [ ] Ajouter workflow configurable.
-- [ ] Ajouter Feature Registry.
-- [ ] Ajouter versionnement et activation tenant.
+- [x] Définir JSON Schema versionné.
+- [x] Implémenter validation stricte.
+- [x] Construire formulaire dynamique.
+- [x] Construire liste, détail et filtres dynamiques.
+- [x] Implémenter CRUD générique.
+- [x] Ajouter workflow configurable.
+- [x] Ajouter Feature Registry.
+- [x] Ajouter versionnement des définitions.
+- [ ] Ajouter activation/désactivation d'une fonctionnalité par tenant.
 
 ## P2 — IA et gouvernance
 - [ ] Définir interface fournisseur IA.

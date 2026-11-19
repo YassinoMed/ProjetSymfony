@@ -192,7 +192,45 @@ Les mutations sont limitées à 20/minute/tenant/utilisateur et la consultation 
 
 Le journal est append-only : chaîne SHA-256 par tenant et triggers PostgreSQL interdisant `UPDATE`, `DELETE` et `TRUNCATE`.
 
-## 12. TLS en local
+## 12. Moteur dynamique (Phase 3)
+
+Une fonctionnalité CRUD se crée depuis l'interface ou via les routes génériques : **aucun fichier PHP n'est ajouté**. La définition JSON contient `schema`, `ui` et `workflow`, est validée par une allowlist stricte, puis publiée sous forme de version immuable. La validation des enregistrements utilise `opis/json-schema`.
+
+### Routes
+
+| Route | Méthode | Accès | Rôle |
+|---|---|---|---|
+| `/features` | GET | `TENANT_VIEW` | Liste des définitions |
+| `/features/new` | GET/POST | owner, admin | Créer une définition (v1) |
+| `/features/{key}/edit` | GET/POST | owner, admin | Publier une version ou modifier les métadonnées |
+| `/features/{key}/records` | GET | `TENANT_VIEW` | Liste, recherche, filtres, tri, pagination |
+| `/features/{key}/records/new` | GET/POST | owner, admin, member | Créer un enregistrement |
+| `/features/{key}/records/{id}` | GET | `TENANT_VIEW` | Détail et transitions disponibles |
+| `/features/{key}/records/{id}/edit` | GET/POST | owner, admin, member | Modifier |
+| `/features/{key}/records/{id}/delete` | POST | owner, admin | Supprimer |
+| `/features/{key}/records/{id}/transition` | POST | rôles déclarés | Appliquer une transition |
+
+### Règles
+
+- Le schéma accepte uniquement des primitives et des tableaux de primitives ; `$ref`, `pattern`, les objets imbriqués et les clés inconnues sont refusés.
+- Chaque évolution du schéma, de l'interface ou du workflow crée une version immuable (`feature_definition_versions`) protégée par triggers PostgreSQL. Une modification de métadonnées seules ne crée pas de version.
+- Les enregistrements stockent la version de schéma utilisée. Une modification les revalide contre la version courante et met à jour leur `schemaVersion`.
+- Les filtres, tris et colonnes sont limités aux champs autorisés par le schéma ; les valeurs SQL sont paramétrées et aucun identifiant SQL ne vient du navigateur.
+- Les transitions sont déclaratives et vérifiées côté serveur : état source, état cible et rôle autorisé.
+- Les mutations sont limitées à 60/minute/tenant/utilisateur (`feature_write`).
+- Les refus et chaque opération sont audités (`feature_definition.*`, `dynamic_record.*`).
+
+### Tests dédiés
+
+```bash
+php bin/phpunit tests/Feature
+php bin/phpunit tests/Integration/FeatureEngineIntegrationTest.php
+php bin/phpunit tests/Controller/FeatureEngineHttpTest.php
+```
+
+Les deux derniers nécessitent PostgreSQL et les migrations Phase 3.
+
+## 13. TLS en local
 
 ```bash
 ./infrastructure/nginx/generate-dev-cert.sh
@@ -202,17 +240,18 @@ docker compose --profile app --profile app-tls up -d --build
 
 `infrastructure/nginx/tls.conf` applique TLS 1.2/1.3, HSTS et la redirection HTTP → HTTPS. Les certificats (`infrastructure/nginx/certs/*.pem`) ne sont jamais commités.
 
-## 13. CI et scans de dépendances
+## 14. CI et scans de dépendances
 
 - `.github/workflows/ci.yml` : lint YAML/conteneur/Twig, migrations up/down, suite PHPUnit complète, `composer audit`, `npm audit`, build frontend.
 - `.github/dependabot.yml` : mises à jour hebdomadaires Composer, npm, GitHub Actions et Docker.
 - Les lockfiles (`composer.lock`, `package-lock.json`) sont versionnés.
 
-## 14. Prochaines étapes (Phase 3)
+## 15. Prochaines étapes (Phase 4)
 
-1. JSON Schema versionné et validation stricte.
-2. Générateur de formulaires et rendu de listes/détails.
-3. CRUD générique avec permissions et filtrage par tenant.
-4. Workflow configurable avec gardes déterministes.
+1. Contrat de fournisseur IA et orchestration asynchrone.
+2. Agents Architecte, Builder limité, Auditeur, Gouverneur et Déployeur.
+3. File RabbitMQ, retries, timeouts et idempotence.
+4. RAG avec filtrage des documents par tenant et permissions.
+5. Fournisseurs cloud et Ollama local.
 
-Voir `PHASES.md` pour les critères de sortie de chaque phase et `PHASE2_REPORT.md` pour les preuves de la phase courante.
+Voir `PHASES.md` pour les critères de sortie de chaque phase et `PHASE3_REPORT.md` pour les preuves de la phase courante.

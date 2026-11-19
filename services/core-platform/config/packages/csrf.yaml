@@ -10,3 +10,5 @@ framework:
             - authenticate
             - logout
             - remove_member
+            - record_transition
+            - delete_record

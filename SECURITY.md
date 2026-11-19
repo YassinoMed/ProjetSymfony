@@ -30,6 +30,12 @@
 - Une adhésion appartenant à un autre tenant renvoie `404`, jamais `403`, pour ne pas révéler son existence.
 - Tests d'accès croisé : `tests/Integration/TenantIsolationTest.php` et `tests/Controller/MembershipSecurityTest.php`.
 
+### Moteur dynamique (Phase 3)
+- `feature_definitions`, `feature_definition_versions` et `dynamic_records` implémentent `TenantOwnedInterface` : le filtre Doctrine s'applique à toutes les requêtes ORM.
+- Une définition est recherchée par couple `tenant + key` ; un enregistrement est recherché par identifiant **et** définition du tenant courant. Un accès croisé renvoie `404`.
+- Les colonnes, filtres, tris et champs de recherche sont limités aux champs déclarés dans le JSON Schema. Les valeurs sont liées en paramètres ; les fragments SQL variables se réduisent aux noms de champs validés et aux directions `ASC`/`DESC`.
+- Les définitions sont des **données** : elles ne contiennent ni code PHP, ni `$ref`, ni expression exécutable. Aucune fonctionnalité ne crée de fichier PHP.
+
 ### Défenses complémentaires
 - PostgreSQL RLS reste prévu comme défense supplémentaire, pas comme remplacement des contrôles applicatifs (non activé en Phase 2).
 - Cache, fichiers, exports, événements Mercure et index vectoriels devront être cloisonnés par tenant dans les phases suivantes.
@@ -67,10 +73,17 @@ Chaque entrée enregistre : acteur, tenant, action, ressource, résultat, contex
 - Écriture sérialisée par un verrou `SELECT ... FOR UPDATE` sur la ligne du tenant, dans la même transaction que l'opération métier.
 - `X-Request-Id` est repris s'il est sûr, sinon un UUID v7 est généré ; il est renvoyé dans la réponse et conservé dans l'entrée.
 
+### Actions Phase 3
+- Définitions : `feature_definition.create`, `feature_definition.update` (métadonnées seules), `feature_definition.version` (publication d'une version).
+- Enregistrements : `dynamic_record.create`, `dynamic_record.update`, `dynamic_record.delete`, `dynamic_record.transition`.
+- Chaque refus de politique ou de workflow est journalisé avec `AuditResult::Denied` et la raison (`policy`, `workflow`).
+
 ### Append-only
 La migration `Version20261118220000` installe des triggers PostgreSQL :
 - `UPDATE` et `DELETE` par ligne → exception `audit_logs est append-only : opération … interdite` ;
 - `TRUNCATE` par statement → même exception.
+
+La migration `Version20261119120000` applique le même principe aux versions de définitions : le trigger `aep_feature_versions_immutable` refuse `UPDATE`, `DELETE` et `TRUNCATE` sur `feature_definition_versions`. Une évolution crée toujours une nouvelle ligne.
 
 Une chaîne SHA-256 seule ne garantit pas l'immutabilité si un attaquant contrôle la base. Ajouter des sauvegardes protégées, des permissions séparées et, si nécessaire, un ancrage externe signé.
 
@@ -88,8 +101,9 @@ Une chaîne SHA-256 seule ne garantit pas l'immutabilité si un attaquant contr�
 
 ### CSRF et validation
 - Formulaires Symfony avec jetons CSRF.
-- Jetons stateless (`submit`, `authenticate`, `logout`, `remove_member`) validés par origine (en-tête `Origin`/`Referer` ou `Sec-Fetch-Site`).
+- Jetons stateless (`submit`, `authenticate`, `logout`, `remove_member`, `record_transition`, `delete_record`) validés par origine (en-tête `Origin`/`Referer` ou `Sec-Fetch-Site`).
 - Validation serveur systématique (email, longueur, enum de rôle) avant toute politique d'accès.
+- Phase 3 : validation stricte des définitions (allowlist de clés, types primitifs, tailles maximales, workflow connu) et des données d'enregistrement (`opis/json-schema`), avec rejet explicite des champs inconnus. Les versions publiées sont immuables par triggers PostgreSQL (`UPDATE`, `DELETE`, `TRUNCATE` interdits).
 
 ### Politiques déterministes
 `App\Security\MembershipPolicy` :
@@ -104,6 +118,7 @@ Les mêmes règles sont appliquées côté contrôleur et côté rendu (défense
 ### Rate limiting
 - Mutations membres : `tenant_admin` — 20/minute/tenant/utilisateur.
 - Audit : `audit_view` — 60/minute/tenant/utilisateur.
+- Mutations du moteur dynamique (définitions, versions, enregistrements, transitions, suppressions) : `feature_write` — 60/minute/tenant/utilisateur.
 - Dépassement → `429` avec `Retry-After`.
 - En production multi-instance, le stockage du limiteur doit être partagé (Redis) pour être global.
 

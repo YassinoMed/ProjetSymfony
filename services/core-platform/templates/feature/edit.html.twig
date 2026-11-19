@@ -1,0 +1,60 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Définition {{ feature.name }} — Auto-Evolving Platform{% endblock %}
+
+{% block body %}
+    <section class="panel">
+        <div class="toolbar">
+            <div>
+                <h1>{{ feature.name }}</h1>
+                <p class="muted">
+                    <code>{{ feature.key }}</code> — version courante v{{ version.version }} — empreinte
+                    <code title="{{ version.hash }}">{{ version.hash|slice(0, 12) }}…</code>
+                </p>
+            </div>
+            <div>
+                <a class="btn-ghost" href="{{ path('app_feature_records', {key: feature.key}) }}">Enregistrements</a>
+                <a class="btn-ghost" href="{{ path('app_features') }}">Fonctionnalités</a>
+            </div>
+        </div>
+
+        <p class="muted-small">
+            Une version publiée est immuable (triggers PostgreSQL). Toute modification du schéma, de l'interface
+            ou du workflow crée une nouvelle version ; les métadonnées seules n'en créent pas.
+        </p>
+
+        <h2 style="margin-top: 1.5rem;">Historique des versions</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Version</th>
+                    <th>Empreinte</th>
+                    <th>Publiée le</th>
+                    <th>Par</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in history %}
+                    <tr>
+                        <td>v{{ item.version }}{% if item.version == version.version %} <span class="badge">courante</span>{% endif %}</td>
+                        <td><code title="{{ item.hash }}">{{ item.hash|slice(0, 16) }}…</code></td>
+                        <td>{{ item.createdAt|date('d/m/Y H:i') }}</td>
+                        <td>{{ item.createdBy ? item.createdBy.email : '—' }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="form-panel">
+            <h2>Publier une évolution</h2>
+            {{ form_start(form) }}
+                {{ form_errors(form) }}
+                {{ form_row(form.key) }}
+                {{ form_row(form.name) }}
+                {{ form_row(form.description) }}
+                {{ form_row(form.definition) }}
+                <button class="btn" type="submit">Publier si la définition a changé</button>
+            {{ form_end(form) }}
+        </div>
+    </section>
+{% endblock %}

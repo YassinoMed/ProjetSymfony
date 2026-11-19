@@ -1,0 +1,118 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ feature.name }} — Auto-Evolving Platform{% endblock %}
+
+{% block body %}
+    <section class="panel">
+        <div class="toolbar">
+            <div>
+                <h1>{{ feature.name }}</h1>
+                <p class="muted">
+                    {{ tenant.name }} — {{ result.total }} enregistrement(s) — schéma v{{ version.version }}.
+                </p>
+            </div>
+            <div>
+                {% if can_create %}
+                    <a class="btn-ghost" href="{{ path('app_feature_record_new', {key: feature.key}) }}">Nouvel enregistrement</a>
+                {% endif %}
+                {% if can_manage %}
+                    <a class="btn-ghost" href="{{ path('app_feature_edit', {key: feature.key}) }}">Définition</a>
+                {% endif %}
+                <a class="btn-ghost" href="{{ path('app_features') }}">Fonctionnalités</a>
+            </div>
+        </div>
+
+        <form method="get" class="filter-bar">
+            <div>
+                <label for="q">Recherche</label>
+                <input id="q" type="text" name="q" value="{{ criteria.q }}" maxlength="80" placeholder="Texte…">
+            </div>
+            <div>
+                <label for="status">Statut</label>
+                <select id="status" name="status">
+                    <option value="">Tous</option>
+                    {% for value, label in statuses %}
+                        <option value="{{ value }}"{% if criteria.status == value %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="sort">Tri</label>
+                <select id="sort" name="sort">
+                    {% for value, label in sortable %}
+                        <option value="{{ value }}"{% if criteria.sort == value %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="dir">Ordre</label>
+                <select id="dir" name="dir">
+                    <option value="desc"{% if criteria.dir == 'desc' %} selected{% endif %}>Décroissant</option>
+                    <option value="asc"{% if criteria.dir == 'asc' %} selected{% endif %}>Croissant</option>
+                </select>
+            </div>
+            <div>
+                <label for="per_page">Par page</label>
+                <select id="per_page" name="per_page">
+                    {% for option in [10, 25, 50, 100] %}
+                        <option value="{{ option }}"{% if result.per_page == option %} selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-actions">
+                <button class="btn-ghost" type="submit">Filtrer</button>
+                <a class="btn-ghost" href="{{ path('app_feature_records', {key: feature.key}) }}">Réinitialiser</a>
+            </div>
+        </form>
+
+        <table>
+            <thead>
+                <tr>
+                    {% for field, label in columns %}
+                        <th>{{ label }}</th>
+                    {% endfor %}
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                    <tr>
+                        {% for field, label in columns %}
+                            <td>{{ row.values[field] }}</td>
+                        {% endfor %}
+                        <td>
+                            <a href="{{ path('app_feature_record_show', {key: feature.key, id: row.record.id.toRfc4122}) }}">Détail</a>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="{{ columns|length + 1 }}" class="muted">Aucun enregistrement ne correspond aux filtres.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="pagination">
+            {% set query = {
+                key: feature.key,
+                q: criteria.q,
+                status: criteria.status,
+                sort: criteria.sort,
+                dir: criteria.dir,
+                per_page: result.per_page
+            } %}
+            {% if result.page > 1 %}
+                <a href="{{ path('app_feature_records', query|merge({page: result.page - 1})) }}">← Précédent</a>
+            {% endif %}
+            <span>Page {{ result.page }} / {{ result.page_count }}</span>
+            {% if result.page < result.page_count %}
+                <a href="{{ path('app_feature_records', query|merge({page: result.page + 1})) }}">Suivant →</a>
+            {% endif %}
+        </div>
+
+        <p class="muted-small" style="margin-top: 1.5rem;">
+            Recherche, filtre, tri et pagination sont exécutés côté serveur sur les champs autorisés par le schéma.
+            Les valeurs sont liées en paramètres SQL ; aucun identifiant SQL ne provient du navigateur.
+        </p>
+    </section>
+{% endblock %}

@@ -25,6 +25,7 @@ Les durées sont indicatives et doivent être réestimées après audit techniqu
 **Critères de sortie :** aucun lecture inter-tenant dans les tests négatifs ; actions interdites refusées côté serveur.
 
 ## Phase 3 — Moteur dynamique
+**Statut :** terminée le 2026-11-19 — preuves et réserves dans `PHASE3_REPORT.md`.
 **Objectif :** créer des fonctionnalités sans nouveau fichier PHP.
 - JSON Schema versionné.
 - Validation stricte des définitions.

@@ -16,6 +16,7 @@ services:
         bind:
             Symfony\Component\RateLimiter\RateLimiterFactoryInterface $tenantAdminLimiter: '@limiter.tenant_admin'
             Symfony\Component\RateLimiter\RateLimiterFactoryInterface $auditViewLimiter: '@limiter.audit_view'
+            Symfony\Component\RateLimiter\RateLimiterFactoryInterface $featureWriteLimiter: '@limiter.feature_write'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name

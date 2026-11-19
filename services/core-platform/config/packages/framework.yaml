@@ -21,6 +21,11 @@ framework:
             policy: 'sliding_window'
             limit: 60
             interval: '1 minute'
+        # Mutations du moteur dynamique : 60 opérations/minute/tenant/utilisateur.
+        feature_write:
+            policy: 'sliding_window'
+            limit: 60
+            interval: '1 minute'
 
     #esi: true
     #fragments: true

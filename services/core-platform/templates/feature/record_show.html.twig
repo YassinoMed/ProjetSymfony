@@ -1,0 +1,65 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Enregistrement — {{ feature.name }}{% endblock %}
+
+{% block body %}
+    <section class="panel">
+        <div class="toolbar">
+            <div>
+                <h1>{{ feature.name }}</h1>
+                <p class="muted">
+                    Enregistrement <code>{{ record.id.toRfc4122 }}</code> — statut « {{ workflow.stateLabel(record.status) }} »
+                    — schéma v{{ record.schemaVersion }}.
+                </p>
+            </div>
+            <div>
+                {% if can_update %}
+                    <a class="btn-ghost" href="{{ path('app_feature_record_edit', {key: feature.key, id: record.id.toRfc4122}) }}">Modifier</a>
+                {% endif %}
+                <a class="btn-ghost" href="{{ path('app_feature_records', {key: feature.key}) }}">Liste</a>
+                {% if can_manage %}
+                    <a class="btn-ghost" href="{{ path('app_feature_edit', {key: feature.key}) }}">Définition</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <table>
+            <tbody>
+                {% for label, value in detail_rows %}
+                    <tr>
+                        <th style="width: 15rem;">{{ label }}</th>
+                        <td>{{ value }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if transitions|length > 0 %}
+            <div class="form-panel">
+                <h2>Transitions disponibles</h2>
+                <p class="muted-small">Les gardes sont déterministes : état courant, transition déclarée et rôle autorisé.</p>
+                <div class="inline-form" style="flex-wrap: wrap;">
+                    {% for transition in transitions %}
+                        <form method="post" action="{{ path('app_feature_record_transition', {key: feature.key, id: record.id.toRfc4122}) }}">
+                            <input type="hidden" name="record_transition[from]" value="{{ record.status }}">
+                            <input type="hidden" name="record_transition[to]" value="{{ transition.to }}">
+                            <input type="hidden" name="record_transition[_token]" value="{{ csrf_token('record_transition') }}">
+                            <button class="btn-ghost" type="submit">{{ transition.label }} → {{ workflow.stateLabel(transition.to) }}</button>
+                        </form>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        {% if can_delete %}
+            <div class="form-panel">
+                <h2>Suppression</h2>
+                <p class="muted-small">La suppression est définitive et journalisée. Les propriétaires et administrateurs uniquement.</p>
+                <form method="post" action="{{ path('app_feature_record_delete', {key: feature.key, id: record.id.toRfc4122}) }}">
+                    <input type="hidden" name="delete_record[_token]" value="{{ csrf_token('delete_record') }}">
+                    <button class="btn-ghost danger" type="submit">Supprimer l'enregistrement</button>
+                </form>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

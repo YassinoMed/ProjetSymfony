@@ -1,0 +1,72 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Fonctionnalités — Auto-Evolving Platform{% endblock %}
+
+{% block body %}
+    <section class="panel">
+        <div class="toolbar">
+            <div>
+                <h1>Fonctionnalités dynamiques</h1>
+                <p class="muted">{{ tenant.name }} — {{ features|length }} fonctionnalité(s) définie(s).</p>
+            </div>
+            {% if can_manage %}
+                <a class="btn-ghost" href="{{ path('app_feature_new') }}">Nouvelle fonctionnalité</a>
+            {% endif %}
+        </div>
+
+        <p class="muted-small">
+            Chaque fonctionnalité est décrite par une version immuable : JSON Schema strict, champs de liste,
+            pagination et workflow déterministe. Le moteur fournit le CRUD sans générer de fichier PHP.
+        </p>
+
+        {% if features|length == 0 %}
+            <div class="card empty" style="margin-top: 1.5rem;">
+                <h2>Aucune fonctionnalité</h2>
+                <p class="muted">
+                    {% if can_manage %}
+                        Créez une première définition JSON pour obtenir immédiatement liste, formulaires, détail et workflow.
+                    {% else %}
+                        Aucune fonctionnalité n'a encore été publiée dans ce tenant.
+                    {% endif %}
+                </p>
+            </div>
+        {% else %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nom</th>
+                        <th>Clé</th>
+                        <th>Version</th>
+                        <th>Champs</th>
+                        <th>États</th>
+                        <th>Enregistrements</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for feature in features %}
+                        <tr>
+                            <td>
+                                {{ feature.definition.name }}
+                                {% if feature.definition.description %}
+                                    <div class="muted-small">{{ feature.definition.description }}</div>
+                                {% endif %}
+                            </td>
+                            <td><code>{{ feature.definition.key }}</code></td>
+                            <td>v{{ feature.version.version }}</td>
+                            <td>{{ feature.field_count }}</td>
+                            <td>{{ feature.state_count }}</td>
+                            <td>{{ feature.record_count }}</td>
+                            <td>
+                                <a href="{{ path('app_feature_records', {key: feature.definition.key}) }}">Ouvrir</a>
+                                {% if can_manage %}
+                                    · <a href="{{ path('app_feature_edit', {key: feature.definition.key}) }}">Définition</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+{% endblock %}

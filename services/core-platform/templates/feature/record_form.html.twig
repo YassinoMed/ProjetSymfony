@@ -1,0 +1,37 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ is_edit ? 'Modifier' : 'Nouvel' }} enregistrement — {{ feature.name }}{% endblock %}
+
+{% block body %}
+    <section class="panel">
+        <div class="toolbar">
+            <div>
+                <h1>{{ is_edit ? 'Modifier l\'enregistrement' : 'Nouvel enregistrement' }}</h1>
+                <p class="muted">{{ feature.name }} — schéma v{{ version.version }} ({{ workflow.stateLabel(record ? record.status : workflow.initial) }})</p>
+            </div>
+            <div>
+                {% if record %}
+                    <a class="btn-ghost" href="{{ path('app_feature_record_show', {key: feature.key, id: record.id.toRfc4122}) }}">Détail</a>
+                {% endif %}
+                <a class="btn-ghost" href="{{ path('app_feature_records', {key: feature.key}) }}">Liste</a>
+            </div>
+        </div>
+
+        <p class="muted-small">
+            Les champs sont générés depuis le JSON Schema courant. Les valeurs sont normalisées puis revalidées
+            côté serveur (types, bornes, formats, énumérations, champs obligatoires).
+        </p>
+
+        {{ form_start(form) }}
+            {{ form_errors(form) }}
+
+            {% for child in form %}
+                {% if child.vars.name != '_token' %}
+                    {{ form_row(child) }}
+                {% endif %}
+            {% endfor %}
+
+            <button class="btn" type="submit">{{ is_edit ? 'Enregistrer les modifications' : 'Créer l\'enregistrement' }}</button>
+        {{ form_end(form) }}
+    </section>
+{% endblock %}

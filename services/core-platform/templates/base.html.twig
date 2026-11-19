@@ -92,7 +92,8 @@
 
             label { display: block; margin: .9rem 0 .35rem; font-size: .85rem; color: var(--muted); }
 
-            input[type="email"], input[type="password"], input[type="text"], select {
+            input[type="email"], input[type="password"], input[type="text"], input[type="number"],
+            input[type="date"], input[type="url"], select, textarea {
                 width: 100%;
                 padding: .8rem .9rem;
                 border-radius: .6rem;
@@ -101,9 +102,18 @@
                 color: var(--text);
                 font-size: 1rem;
                 outline: none;
+                font-family: inherit;
             }
 
-            input:focus, select:focus { border-color: var(--accent-strong); box-shadow: 0 0 0 3px rgba(45, 212, 191, .15); }
+            textarea { resize: vertical; line-height: 1.45; }
+            textarea.code-input { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .82rem; }
+
+            input:focus, select:focus, textarea:focus { border-color: var(--accent-strong); box-shadow: 0 0 0 3px rgba(45, 212, 191, .15); }
+
+            input[type="checkbox"] { width: 1rem; height: 1rem; accent-color: var(--accent-strong); }
+
+            .form-error, ul.form-errors { color: var(--danger); font-size: .82rem; margin: .3rem 0 0; padding-left: 1rem; }
+            .help-text { color: var(--muted); font-size: .78rem; margin-top: .3rem; }
 
             .btn, .btn-ghost {
                 display: inline-flex;
@@ -136,6 +146,22 @@
             }
 
             .btn-ghost:hover { border-color: var(--accent-strong); color: var(--accent); }
+
+            .btn-ghost.danger { border-color: rgba(251, 113, 133, .5); color: var(--danger); }
+            .btn-ghost.danger:hover { border-color: var(--danger); background: rgba(251, 113, 133, .12); }
+
+            .filter-bar {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+                gap: .65rem 1rem;
+                align-items: end;
+                margin: 1.25rem 0 .5rem;
+                padding-bottom: 1rem;
+                border-bottom: 1px solid var(--border);
+            }
+
+            .filter-bar label { margin-top: 0; }
+            .filter-actions { display: flex; gap: .4rem; align-items: center; }
 
             .alert {
                 padding: .8rem 1rem;
@@ -206,6 +232,7 @@
                             <a href="{{ path('app_dashboard') }}">Tableau de bord</a>
                             {% if is_granted('TENANT_VIEW', tenant) %}
                                 <a href="{{ path('app_tenant_members') }}">Membres</a>
+                                <a href="{{ path('app_features') }}">Fonctionnalités</a>
                             {% endif %}
                             {% if is_granted('TENANT_AUDIT', tenant) %}
                                 <a href="{{ path('app_audit') }}">Audit</a>
