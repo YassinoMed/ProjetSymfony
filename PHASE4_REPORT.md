@@ -206,7 +206,7 @@
 | `composer.json` / `composer.lock` | `opis/json-schema`, `symfony/http-client`, `symfony/messenger`, `symfony/doctrine-messenger`, `symfony/uid`, `symfony/yaml`, PHPUnit |
 | `config/services.yaml` | Câblage fournisseurs, RAG, sécurité, handler |
 | `.env` | Variables AI, RAG, Ollama, cloud |
-| `Dockerfile` | Extensions PostgreSQL, utilisateur non privilégié, build reproductible |
+| `Dockerfile` | `libpq-dev` au lieu de `postgresql-dev` (évite clang/llvm/icu), `opcache` retiré (intégré à l'image), utilisateur non privilégié |
 | `.gitignore` | Cache PHPUnit, `.env.local` |
 | `README.md` (service) | Architecture, pipeline, démarrage et tests réels |
 | `docker-compose.yml` | Worker et API AI, ancre d'environnement, image partagée |
@@ -352,6 +352,10 @@ internal_ai_decide_proposal   POST     /internal/ai/proposals/{id}/decision
 ```
 docker compose --profile app build ai-orchestrator
 → image auto-evolving-platform-ai-orchestrator:latest (EXIT 0)
+
+docker compose --profile app build core-platform
+→ image auto-evolving-platform-core-platform:latest (EXIT 0)
+# Les Dockerfiles Core, AI et Generation utilisent libpq-dev sans opcache.
 
 docker compose --profile app up -d ai-orchestrator ai-orchestrator-api
 → worker Messenger « Consuming messages from transport "async" »
