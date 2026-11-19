@@ -39,6 +39,7 @@ final class TenantContextListener
         private readonly TenantRepository $tenants,
         private readonly TenantMembershipRepository $memberships,
         private readonly TenantContext $context,
+        private readonly TenantFilterManager $tenantFilter,
     ) {
     }
 
@@ -48,7 +49,10 @@ final class TenantContextListener
             return;
         }
 
+        // Réinitialisation systématique : aucune donnée ni filtre d'une requête
+        // précédente ne doit survivre, notamment en mode worker.
         $this->context->reset();
+        $this->tenantFilter->disable();
 
         $user = $this->security->getUser();
         if (!$user instanceof User || !$user->isActive()) {
@@ -84,7 +88,7 @@ final class TenantContextListener
             throw new AccessDeniedHttpException('Vous n\'êtes pas membre actif de ce tenant.');
         }
 
-        $this->context->setTenant($membership);
+        $this->applyMembership($membership);
 
         if ($request->hasSession()) {
             $request->getSession()->set(self::SESSION_KEY, $tenant->getId()->toRfc4122());
@@ -99,7 +103,7 @@ final class TenantContextListener
         if (is_string($storedId) && '' !== $storedId) {
             $membership = $this->resolveStoredMembership($user, $storedId);
             if (null !== $membership) {
-                $this->context->setTenant($membership);
+                $this->applyMembership($membership);
 
                 return;
             }
@@ -109,7 +113,7 @@ final class TenantContextListener
 
         $activeMemberships = $this->memberships->findActiveByUser($user);
         if (1 === count($activeMemberships)) {
-            $this->context->setTenant($activeMemberships[0]);
+            $this->applyMembership($activeMemberships[0]);
 
             if (null !== $session) {
                 $session->set(self::SESSION_KEY, $activeMemberships[0]->getTenant()->getId()->toRfc4122());
@@ -130,5 +134,11 @@ final class TenantContextListener
         }
 
         return $this->memberships->findActiveForUserAndTenant($user, $tenant);
+    }
+
+    private function applyMembership(TenantMembership $membership): void
+    {
+        $this->context->setTenant($membership);
+        $this->tenantFilter->enable($membership->getTenant()->getId());
     }
 }

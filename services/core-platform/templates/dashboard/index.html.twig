@@ -24,6 +24,19 @@
                     <div class="value">{{ app.user.roles|join(', ') }}</div>
                 </div>
             </div>
+
+            <div class="toolbar" style="margin-top: 1.75rem;">
+                <div>
+                    <h2>Gouvernance et sécurité</h2>
+                    <p class="muted">Membres, rôles et journal d'audit append-only du tenant.</p>
+                </div>
+                <div>
+                    <a class="btn-ghost" href="{{ path('app_tenant_members') }}">Gérer les membres</a>
+                    {% if is_granted('TENANT_AUDIT', tenant) %}
+                        <a class="btn-ghost" href="{{ path('app_audit') }}">Consulter l'audit</a>
+                    {% endif %}
+                </div>
+            </div>
         {% else %}
             <div class="card empty">
                 <h2>Aucun tenant actif</h2>

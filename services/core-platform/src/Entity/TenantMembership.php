@@ -7,6 +7,7 @@ namespace App\Entity;
 use App\Entity\Enum\MembershipRole;
 use App\Entity\Enum\MembershipStatus;
 use App\Repository\TenantMembershipRepository;
+use App\Tenant\TenantOwnedInterface;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
@@ -15,7 +16,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Table(name: 'tenant_memberships')]
 #[ORM\UniqueConstraint(name: 'uniq_tenant_membership', columns: ['tenant_id', 'user_id'])]
 #[ORM\Index(name: 'idx_membership_user', columns: ['user_id'])]
-class TenantMembership
+class TenantMembership implements TenantOwnedInterface
 {
     #[ORM\Id]
     #[ORM\Column(type: 'uuid', unique: true)]

@@ -13,6 +13,7 @@ use App\Repository\TenantMembershipRepository;
 use App\Repository\TenantRepository;
 use App\Tenant\TenantContext;
 use App\Tenant\TenantContextListener;
+use App\Tenant\TenantFilterManager;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
@@ -25,7 +26,7 @@ use Symfony\Component\HttpKernel\HttpKernelInterface;
 
 final class TenantContextListenerTest extends TestCase
 {
-    public function testAnonymousRequestLeavesContextEmpty(): void
+    public function testAnonymousRequestLeavesContextEmptyAndDisablesFilter(): void
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(null);
@@ -33,14 +34,18 @@ final class TenantContextListenerTest extends TestCase
         $tenants = $this->createMock(TenantRepository::class);
         $tenants->expects(self::never())->method('find');
 
+        $filter = $this->createMock(TenantFilterManager::class);
+        $filter->expects(self::once())->method('disable');
+        $filter->expects(self::never())->method('enable');
+
         $context = new TenantContext();
-        $listener = new TenantContextListener($security, $tenants, $this->createStub(TenantMembershipRepository::class), $context);
+        $listener = new TenantContextListener($security, $tenants, $this->createStub(TenantMembershipRepository::class), $context, $filter);
         $listener($this->event(new Request()));
 
         self::assertFalse($context->hasTenant());
     }
 
-    public function testHeaderSelectsVerifiedTenantAndStoresItInSession(): void
+    public function testHeaderSelectsVerifiedTenantAndEnablesFilter(): void
     {
         $tenant = new Tenant('Acme', 'acme');
         $user = new User('user@example.com');
@@ -51,7 +56,11 @@ final class TenantContextListenerTest extends TestCase
         $request->headers->set(TenantContextListener::HEADER, $tenant->getId()->toRfc4122());
 
         $context = new TenantContext();
-        $listener = $this->listener($user, $tenant, $membership, $context);
+        $filter = $this->createMock(TenantFilterManager::class);
+        $filter->expects(self::once())->method('disable');
+        $filter->expects(self::once())->method('enable')->with($tenant->getId());
+
+        $listener = $this->listener($user, $tenant, $membership, $context, $filter);
         $listener($this->event($request));
 
         self::assertSame($tenant, $context->getTenant());
@@ -111,8 +120,12 @@ final class TenantContextListenerTest extends TestCase
         $memberships = $this->createStub(TenantMembershipRepository::class);
         $memberships->method('findActiveByUser')->willReturn([$membership]);
 
+        $filter = $this->createMock(TenantFilterManager::class);
+        $filter->expects(self::once())->method('disable');
+        $filter->expects(self::once())->method('enable')->with($tenant->getId());
+
         $context = new TenantContext();
-        $listener = new TenantContextListener($security, $tenants, $memberships, $context);
+        $listener = new TenantContextListener($security, $tenants, $memberships, $context, $filter);
         $listener($this->event(new Request()));
 
         self::assertSame($tenant, $context->getTenant());
@@ -123,6 +136,7 @@ final class TenantContextListenerTest extends TestCase
         Tenant $tenant,
         ?TenantMembership $membership,
         TenantContext $context,
+        ?TenantFilterManager $filter = null,
     ): TenantContextListener {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
@@ -133,7 +147,13 @@ final class TenantContextListenerTest extends TestCase
         $memberships = $this->createStub(TenantMembershipRepository::class);
         $memberships->method('findActiveForUserAndTenant')->willReturn($membership);
 
-        return new TenantContextListener($security, $tenants, $memberships, $context);
+        return new TenantContextListener(
+            $security,
+            $tenants,
+            $memberships,
+            $context,
+            $filter ?? $this->createStub(TenantFilterManager::class),
+        );
     }
 
     private function event(Request $request): RequestEvent

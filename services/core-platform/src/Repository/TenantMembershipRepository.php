@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Entity\Enum\MembershipRole;
 use App\Entity\Enum\MembershipStatus;
 use App\Entity\Enum\TenantStatus;
 use App\Entity\Tenant;
@@ -11,6 +12,7 @@ use App\Entity\TenantMembership;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<TenantMembership>
@@ -67,6 +69,51 @@ class TenantMembershipRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('membership_status', MembershipStatus::Active->value)
             ->setParameter('tenant_status', TenantStatus::Active->value)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    public function findOneByIdForTenant(Uuid $id, Tenant $tenant): ?TenantMembership
+    {
+        return $this->createQueryBuilder('m')
+            ->addSelect('u')
+            ->join('m.user', 'u')
+            ->andWhere('m.id = :id')
+            ->andWhere('m.tenant = :tenant')
+            ->setParameter('id', $id)
+            ->setParameter('tenant', $tenant)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Toutes les adhésions du tenant, actives ou non, pour l'écran de gestion.
+     *
+     * @return list<TenantMembership>
+     */
+    public function findAllByTenant(Tenant $tenant): array
+    {
+        return $this->createQueryBuilder('m')
+            ->addSelect('u')
+            ->join('m.user', 'u')
+            ->andWhere('m.tenant = :tenant')
+            ->setParameter('tenant', $tenant)
+            ->orderBy('m.status', 'ASC')
+            ->addOrderBy('u.email', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countActiveOwners(Tenant $tenant): int
+    {
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->andWhere('m.tenant = :tenant')
+            ->andWhere('m.role = :role')
+            ->andWhere('m.status = :status')
+            ->setParameter('tenant', $tenant)
+            ->setParameter('role', MembershipRole::Owner->value)
+            ->setParameter('status', MembershipStatus::Active->value)
             ->getQuery()
             ->getSingleScalarResult();
     }

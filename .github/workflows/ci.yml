@@ -1,0 +1,136 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-platform:
+    name: Core Symfony (lint, migrations, tests, audit)
+    runs-on: ubuntu-latest
+    env:
+      APP_SECRET: ci-only-secret-not-used-in-production
+      DATABASE_URL: postgresql://aep:aep_dev_password@127.0.0.1:5432/core?serverVersion=17&charset=utf8
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: aep
+          POSTGRES_PASSWORD: aep_dev_password
+          POSTGRES_DB: core
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aep -d core"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    defaults:
+      run:
+        working-directory: services/core-platform
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: ctype, iconv, intl, mbstring, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - name: Installer les dépendances
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Scanner les dépendances PHP
+        run: composer audit --locked --no-interaction
+
+      - name: Lint YAML, conteneur et Twig
+        run: |
+          php bin/console lint:yaml config
+          php bin/console lint:container
+          php bin/console lint:twig templates
+
+      - name: Créer la base de test
+        run: PGPASSWORD=aep_dev_password createdb -h 127.0.0.1 -U aep core_test
+
+      - name: Appliquer les migrations
+        run: php bin/console doctrine:migrations:migrate --env=test --no-interaction
+
+      - name: Vérifier le rollback de la Phase 2
+        run: |
+          php bin/console doctrine:migrations:migrate prev --env=test --no-interaction
+          php bin/console doctrine:migrations:migrate --env=test --no-interaction
+
+      - name: Tests unitaires, intégration et sécurité
+        run: php bin/phpunit
+
+  services:
+    name: ${{ matrix.service }} (lint, audit)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [ai-orchestrator, generation-service, sandbox-runner]
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: ctype, iconv, intl, mbstring, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - name: Installer les dépendances
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Scanner les dépendances PHP
+        run: composer audit --locked --no-interaction
+
+      - name: Vérifier la syntaxe PHP
+        run: find src -name '*.php' -exec php -l {} \;
+
+      - name: Lint du conteneur Symfony
+        if: matrix.service != 'sandbox-runner'
+        env:
+          APP_SECRET: ci-only-secret-not-used-in-production
+        run: php bin/console lint:container
+
+  frontend:
+    name: Frontend (build, audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/web-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/web-app/package-lock.json
+
+      - name: Installer les dépendances (lockfile)
+        run: npm ci
+
+      - name: Scanner les dépendances npm
+        run: npm audit --audit-level=high
+
+      - name: Build de production
+        run: npm run build

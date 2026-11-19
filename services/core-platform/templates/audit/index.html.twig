@@ -1,0 +1,82 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Journal d'audit — Auto-Evolving Platform{% endblock %}
+
+{% block body %}
+    <section class="panel">
+        <div class="toolbar">
+            <div>
+                <h1>Journal d'audit</h1>
+                <p class="muted">{{ tenant.name }} — {{ total }} entrée(s), du plus récent au plus ancien.</p>
+            </div>
+            <a class="btn-ghost" href="{{ path('app_tenant_members') }}">Membres</a>
+        </div>
+
+        <p class="muted-small">
+            Journal append-only : chaque entrée est chaînée par empreinte SHA-256. Les triggers PostgreSQL
+            refusent toute modification ou suppression.
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Acteur</th>
+                    <th>Action</th>
+                    <th>Résultat</th>
+                    <th>Ressource</th>
+                    <th>Corrélation</th>
+                    <th>Empreinte</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                    <tr>
+                        <td>{{ entry.createdAt|date('d/m/Y H:i:s') }}</td>
+                        <td>{{ entry.actorEmail }}</td>
+                        <td>
+                            {{ entry.action.label }}
+                            <div class="muted-small">{{ entry.action.value }}</div>
+                        </td>
+                        <td>{{ entry.result.label }}</td>
+                        <td>
+                            {{ entry.resourceType }}
+                            {% if entry.resourceId %}
+                                <div><code>{{ entry.resourceId }}</code></div>
+                            {% endif %}
+                        </td>
+                        <td><code>{{ entry.correlationId }}</code></td>
+                        <td>
+                            <code title="{{ entry.hash }}">{{ entry.hash|slice(0, 12) }}…</code>
+                            {% if entry.previousHash %}
+                                <div class="muted-small">préc. {{ entry.previousHash|slice(0, 8) }}…</div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="7">
+                            <details>
+                                <summary>Contexte de l'entrée</summary>
+                                <pre>{{ entry.context|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+                            </details>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="muted">Aucune entrée d'audit pour ce tenant.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="pagination">
+            {% if page > 1 %}
+                <a href="{{ path('app_audit', {page: page - 1}) }}">← Précédent</a>
+            {% endif %}
+            <span>Page {{ page }} / {{ page_count }}</span>
+            {% if page < page_count %}
+                <a href="{{ path('app_audit', {page: page + 1}) }}">Suivant →</a>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}

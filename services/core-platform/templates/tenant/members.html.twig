@@ -1,0 +1,91 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Membres — Auto-Evolving Platform{% endblock %}
+
+{% block body %}
+    <section class="panel">
+        <div class="toolbar">
+            <div>
+                <h1>Membres du tenant</h1>
+                <p class="muted">{{ tenant.name }} — {{ memberships|length }} adhésion(s).</p>
+            </div>
+            {% if can_manage %}
+                <a class="btn-ghost" href="{{ path('app_audit') }}">Journal d'audit</a>
+            {% endif %}
+        </div>
+
+        {% if not can_manage %}
+            <p class="muted">Vous consultez la liste en lecture seule. Seuls les propriétaires et administrateurs peuvent la modifier.</p>
+        {% endif %}
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Utilisateur</th>
+                    <th>Rôle</th>
+                    <th>Statut</th>
+                    <th>Depuis</th>
+                    {% if can_manage %}<th>Actions</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for membership in memberships %}
+                    {% set key = membership.id.toRfc4122 %}
+                    <tr>
+                        <td>
+                            {{ membership.user.email }}
+                            {% if membership.id.toRfc4122 == actor.id.toRfc4122 %}
+                                <span class="muted-small">(vous)</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ membership.role.label }}</td>
+                        <td>{{ membership.status.label }}</td>
+                        <td>{{ membership.createdAt|date('d/m/Y H:i') }}</td>
+                        {% if can_manage %}
+                            <td>
+                                {% if membership.active and role_forms[key] is defined %}
+                                    {{ form_start(role_forms[key]) }}
+                                        <div class="inline-form">
+                                            {{ form_widget(role_forms[key].role) }}
+                                            <button class="btn-ghost" type="submit">Mettre à jour</button>
+                                        </div>
+                                    {{ form_end(role_forms[key]) }}
+                                {% endif %}
+                                {% if membership.active and remove_forms[key] is defined %}
+                                    {{ form_start(remove_forms[key]) }}
+                                        <button class="btn-ghost" type="submit">Retirer</button>
+                                    {{ form_end(remove_forms[key]) }}
+                                {% endif %}
+                                {% if not membership.active %}
+                                    <span class="muted-small">Réactivable via l'ajout par email.</span>
+                                {% endif %}
+                            </td>
+                        {% endif %}
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="{{ can_manage ? 5 : 4 }}" class="muted">Aucun membre.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if can_manage and assignable_roles|length > 0 %}
+            <div class="form-panel">
+                <h2>Ajouter un membre</h2>
+                <p class="muted">Le compte doit déjà exister (commande <code>app:create-user</code>). Un compte suspendu est réactivé avec le rôle choisi.</p>
+
+                {{ form_start(add_form) }}
+                    {{ form_row(add_form.email) }}
+                    {{ form_row(add_form.role) }}
+                    <button class="btn" type="submit">Ajouter au tenant</button>
+                {{ form_end(add_form) }}
+            </div>
+        {% endif %}
+
+        <p class="muted-small" style="margin-top: 1.5rem;">
+            Règles serveur : un administrateur ne peut pas modifier un propriétaire, personne ne peut modifier
+            sa propre adhésion, et le dernier propriétaire actif ne peut être ni rétrogradé ni retiré.
+        </p>
+    </section>
+{% endblock %}

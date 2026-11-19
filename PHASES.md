@@ -14,6 +14,7 @@ Les durées sont indicatives et doivent être réestimées après audit techniqu
 **Critères de sortie :** installation reproductible, migrations testées, tests de base verts, secrets hors dépôt.
 
 ## Phase 2 — Multi-tenant et sécurité
+**Statut :** terminée le 2026-11-18 — preuves et réserves dans `PHASE2_REPORT.md`.
 **Objectif :** isoler complètement les données par tenant.
 - Isolation tenant vérifiée à chaque accès.
 - RBAC et politiques déterministes.

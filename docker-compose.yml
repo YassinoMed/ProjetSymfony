@@ -86,6 +86,23 @@ services:
       - "8000:80"
     volumes:
       - ./infrastructure/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./infrastructure/nginx/security-headers.conf:/etc/nginx/conf.d/security-headers.conf:ro
+      - ./services/core-platform/public:/app/public:ro
+    depends_on:
+      - core-platform
+
+  # Terminaison TLS : générer d'abord un certificat avec
+  # ./infrastructure/nginx/generate-dev-cert.sh puis démarrer avec
+  # --profile app --profile app-tls. Accessible sur https://localhost:8443.
+  nginx-tls:
+    image: nginx:1.27-alpine
+    profiles: ["app-tls"]
+    ports:
+      - "8443:443"
+    volumes:
+      - ./infrastructure/nginx/tls.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./infrastructure/nginx/security-headers.conf:/etc/nginx/conf.d/security-headers.conf:ro
+      - ./infrastructure/nginx/certs:/etc/nginx/certs:ro
       - ./services/core-platform/public:/app/public:ro
     depends_on:
       - core-platform

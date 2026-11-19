@@ -30,6 +30,12 @@ security:
                 target: app_login
                 enable_csrf: true
 
+            # Freine le bourrage d'identifiants : 5 tentatives/minute par
+            # couple email/IP, et 25 tentatives/minute au global pour l'IP.
+            login_throttling:
+                max_attempts: 5
+                interval: '1 minute'
+
     # Note: Only the *first* matching rule is applied
     access_control:
         - { path: ^/login$, roles: PUBLIC_ACCESS }

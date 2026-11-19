@@ -1,14 +1,14 @@
 # BACKLOG — Backlog initial priorisé
 
 ## P0 — Bloquant
-- [ ] Initialiser dépôt Symfony et conventions.
-- [ ] Créer Docker Compose local.
-- [ ] Configurer PostgreSQL, Redis et RabbitMQ.
-- [ ] Implémenter authentification et rôles.
-- [ ] Implémenter le contexte tenant côté serveur.
-- [ ] Ajouter tests d'isolation tenant.
-- [ ] Créer migrations de base.
-- [ ] Ajouter CI minimale.
+- [x] Initialiser dépôt Symfony et conventions.
+- [x] Créer Docker Compose local.
+- [x] Configurer PostgreSQL, Redis et RabbitMQ.
+- [x] Implémenter authentification et rôles.
+- [x] Implémenter le contexte tenant côté serveur.
+- [x] Ajouter tests d'isolation tenant.
+- [x] Créer migrations de base.
+- [x] Ajouter CI minimale.
 
 ## P1 — MVP dynamique
 - [ ] Définir JSON Schema versionné.
@@ -36,7 +36,8 @@
 - [ ] Construire sandbox isolée.
 - [ ] Intégrer nikic/php-parser.
 - [ ] Ajouter PHPStan et PHPUnit dans sandbox.
-- [ ] Ajouter scans de dépendances et images.
+- [x] Ajouter scans des dépendances (Composer, npm, Dependabot).
+- [ ] Ajouter scans des images conteneur.
 - [ ] Ajouter staging et promotion d'artefacts.
 - [ ] Ajouter rollback.
 - [ ] Ajouter observabilité.

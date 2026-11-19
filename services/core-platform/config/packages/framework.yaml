@@ -3,7 +3,24 @@ framework:
     secret: '%env(APP_SECRET)%'
 
     # Note that the session will be started ONLY if you read or write from it.
-    session: true
+    session:
+        cookie_httponly: true
+        cookie_samesite: lax
+        # En HTTPS (y compris derrière un proxy de confiance) le cookie est
+        # marqué Secure ; la production force la valeur à true ci-dessous.
+        cookie_secure: auto
+
+    rate_limiter:
+        # Mutations de gestion des membres : 20 opérations/minute/tenant/utilisateur.
+        tenant_admin:
+            policy: 'sliding_window'
+            limit: 20
+            interval: '1 minute'
+        # Consultation du journal d'audit : 60 pages/minute/tenant/utilisateur.
+        audit_view:
+            policy: 'sliding_window'
+            limit: 60
+            interval: '1 minute'
 
     #esi: true
     #fragments: true
@@ -13,3 +30,9 @@ when@test:
         test: true
         session:
             storage_factory_id: session.storage.factory.mock_file
+
+when@prod:
+    framework:
+        session:
+            # Aucun cookie de session ne doit circuler en clair en production.
+            cookie_secure: true

@@ -105,7 +105,34 @@ Le Sandbox Runner est sur un réseau Docker interne, sans accès aux bases ni à
 ## 8. Tests
 
 ```bash
-cd services/core-platform && php bin/phpunit
+cd services/core-platform
+
+# Suite complète (les tests d'intégration nécessitent PostgreSQL)
+php bin/phpunit
+
+# Uniquement les tests unitaires (sans base)
+php bin/phpunit tests/Tenant tests/Security tests/Audit
+```
+
+Les tests d'intégration et fonctionnels s'exécutent sur une base PostgreSQL de test. En local, le plus simple est un conteneur dédié :
+
+```bash
+docker run -d --name aep-phase2-pg \
+  -e POSTGRES_USER=aep -e POSTGRES_PASSWORD=aep_dev_password -e POSTGRES_DB=core \
+  -p 55432:5432 postgres:17
+
+docker exec aep-phase2-pg createdb -U aep core_test
+
+export DATABASE_URL='postgresql://aep:aep_dev_password@127.0.0.1:55432/core?serverVersion=17&charset=utf8'
+php bin/console doctrine:migrations:migrate --env=test --no-interaction
+php bin/phpunit
+```
+
+`when@test` ajoute le suffixe `_test` au nom de base : avec `DATABASE_URL` pointant sur `core`, les tests utilisent `core_test`. Si la base ou le schéma manque, les tests d'intégration sont marqués `skipped` avec un message explicite.
+
+Les autres services :
+
+```bash
 cd services/ai-orchestrator && php bin/phpunit
 cd services/generation-service && php bin/phpunit
 ```
@@ -138,16 +165,54 @@ Le tenant actif est résolu à chaque requête par `TenantContextListener` :
 Un en-tête explicite invalide renvoie `400`, un tenant inactif ou une adhésion absente renvoie `403`.
 Le voter `TenantVoter` expose les attributs `TENANT_VIEW`, `TENANT_MANAGE`, `TENANT_AUDIT` et `TENANT_OWNER`.
 
+Après vérification de l'adhésion, le listener active le filtre Doctrine `tenant_filter`. Toute entité implémentant `TenantOwnedInterface` est alors automatiquement restreinte au tenant courant. Le filtre échoue de manière fermée (`1 = 0`) s'il est activé sans tenant.
+
 ```bash
 curl -H "X-Tenant-Id: <uuid-du-tenant>" http://localhost:8000/
 ```
 
-## 11. Prochaines étapes (Phase 1 / Phase 2)
+## 11. Gestion des membres et journal d'audit
 
-1. Journal d'audit append-only.
-2. Health checks et logs structurés.
-3. CI (lint, tests, analyse de vulnérabilités).
-4. Tests d'intégration PostgreSQL et tests négatifs d'isolation.
-5. Rate limiting et durcissement CSRF sur les futures API.
+| Route | Méthode | Accès | Rôle |
+|---|---|---|---|
+| `/tenant/members` | GET | `TENANT_VIEW` | Liste des adhésions |
+| `/tenant/members` | POST | `TENANT_MANAGE` | Ajout / réactivation |
+| `/tenant/members/{id}/role` | POST | `TENANT_MANAGE` | Changement de rôle |
+| `/tenant/members/{id}/remove` | POST | `TENANT_MANAGE` | Retrait (suspension) |
+| `/audit` | GET | `TENANT_AUDIT` | Journal paginé |
 
-Voir `PHASES.md` pour les critères de sortie de chaque phase.
+Règles serveur :
+
+- owner et admin peuvent gérer les membres ; un admin ne touche jamais un owner ;
+- seul un owner attribue le rôle owner ;
+- personne ne peut modifier ou retirer sa propre adhésion ;
+- le dernier owner actif ne peut être ni rétrogradé ni retiré.
+
+Les mutations sont limitées à 20/minute/tenant/utilisateur et la consultation de l'audit à 60/minute. Un dépassement renvoie `429`.
+
+Le journal est append-only : chaîne SHA-256 par tenant et triggers PostgreSQL interdisant `UPDATE`, `DELETE` et `TRUNCATE`.
+
+## 12. TLS en local
+
+```bash
+./infrastructure/nginx/generate-dev-cert.sh
+docker compose --profile app --profile app-tls up -d --build
+# https://localhost:8443 (certificat auto-signé)
+```
+
+`infrastructure/nginx/tls.conf` applique TLS 1.2/1.3, HSTS et la redirection HTTP → HTTPS. Les certificats (`infrastructure/nginx/certs/*.pem`) ne sont jamais commités.
+
+## 13. CI et scans de dépendances
+
+- `.github/workflows/ci.yml` : lint YAML/conteneur/Twig, migrations up/down, suite PHPUnit complète, `composer audit`, `npm audit`, build frontend.
+- `.github/dependabot.yml` : mises à jour hebdomadaires Composer, npm, GitHub Actions et Docker.
+- Les lockfiles (`composer.lock`, `package-lock.json`) sont versionnés.
+
+## 14. Prochaines étapes (Phase 3)
+
+1. JSON Schema versionné et validation stricte.
+2. Générateur de formulaires et rendu de listes/détails.
+3. CRUD générique avec permissions et filtrage par tenant.
+4. Workflow configurable avec gardes déterministes.
+
+Voir `PHASES.md` pour les critères de sortie de chaque phase et `PHASE2_REPORT.md` pour les preuves de la phase courante.

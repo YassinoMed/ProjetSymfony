@@ -14,4 +14,13 @@ enum MembershipStatus: string
     {
         return self::Active === $this;
     }
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::Active => 'Actif',
+            self::Invited => 'Invité',
+            self::Suspended => 'Suspendu',
+        };
+    }
 }
