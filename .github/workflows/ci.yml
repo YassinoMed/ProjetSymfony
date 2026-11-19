@@ -38,7 +38,7 @@ jobs:
       run:
         working-directory: services/core-platform
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Installer PHP 8.5
         uses: shivammathur/setup-php@v2
@@ -105,7 +105,7 @@ jobs:
       run:
         working-directory: services/ai-orchestrator
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Installer PHP 8.5
         uses: shivammathur/setup-php@v2
@@ -154,7 +154,7 @@ jobs:
       run:
         working-directory: services/${{ matrix.service }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Installer PHP 8.5
         uses: shivammathur/setup-php@v2
@@ -186,7 +186,7 @@ jobs:
       run:
         working-directory: frontend/web-app
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Installer Node.js
         uses: actions/setup-node@v4
