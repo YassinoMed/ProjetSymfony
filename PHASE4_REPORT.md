@@ -390,6 +390,14 @@ POST /internal/ai/proposals/{id}/decision {"decision":"approve", ...}
 composer audit → No security vulnerability advisories found.
 ```
 
+### Intégration continue
+
+```
+Commit 818a39b → run GitHub Actions 44485604173 : success
+Jobs : Core Symfony, AI Orchestrator, generation-service, sandbox-runner, Frontend
+Le job AI applique les migrations, vérifie le rollback puis exécute les 117 tests.
+```
+
 ### Critère de sortie Phase 4
 
 Le test `testCreateRunsPipelineAndNeverPublishes` prouve qu'une demande produit une proposition structurée et explicable (`payload`, `rationale`, `risks`, `citations`, `policy`, `agent_trace`), que son statut est `awaiting_approval` et que `published` vaut `false` avec `publication: forbidden`. Le test `testNoPublishRouteExists` prouve qu'aucune route de publication n'existe.
